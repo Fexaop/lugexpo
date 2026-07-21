@@ -41,9 +41,10 @@ export default function RootLayout({
       lang="en"
       className={`${body.variable} ${geistMono.variable} dark h-full`}
     >
-      <body className="crt-grade flex min-h-full flex-col bg-[#05080a] text-foreground">
+      <body className="flex min-h-full flex-col bg-[#05080a] text-foreground desktop-crt-grade">
         {children}
-        <CrtOverlay intensity={0.9} />
+        {/* CRT is a no-op on touch devices (see component) — iOS paint bugs */}
+        <CrtOverlay intensity={0.75} />
       </body>
     </html>
   );

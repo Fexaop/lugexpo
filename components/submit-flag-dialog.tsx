@@ -13,7 +13,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -85,19 +84,19 @@ export function SubmitFlagDialog({
       }}
     >
       {/*
-        Avoid asChild on iOS: Slot/merge can drop dimensions until a reflow
-        (e.g. keyboard open / typing). Native button is always painted.
+        Plain <button> + controlled open state.
+        Do NOT use DialogTrigger/asChild — iOS Safari has had cases where
+        the trigger stays unpainted until a text-field reflow (typing).
       */}
-      <DialogTrigger
+      <button
         type="button"
-        className={cn(
-          "play-hand-btn chip-glow inline-flex w-full items-center justify-center gap-2 rounded-lg border-2 border-balatro-gold bg-gradient-to-b from-[#ffe08a] to-[#f5c542] px-5 py-3 text-sm font-semibold tracking-wide text-[#1a1000] shadow-[0_4px_0_#a67c12] active:translate-y-0.5 active:shadow-none",
-          triggerClassName
-        )}
+        onClick={() => setOpen(true)}
+        className={cn("play-hand-btn", triggerClassName)}
       >
         <Spade className="size-4 shrink-0" aria-hidden />
-        Play hand
-      </DialogTrigger>
+        <span>Play hand</span>
+      </button>
+
       <DialogContent className="max-h-[min(90dvh,720px)] w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain border-2 border-balatro-gold/40 bg-[#0e181a] sm:max-w-md shadow-[0_0_60px_rgba(222,68,59,0.2)]">
         <DialogHeader>
           <p className="font-display text-xs tracking-[0.35em] text-balatro-gold">
@@ -180,12 +179,12 @@ export function SubmitFlagDialog({
             </p>
           )}
 
-          <DialogFooter className="sticky bottom-0 bg-[#0e181a] pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
+          <DialogFooter className="bg-[#0e181a] pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
             <Button
               type="submit"
               variant="destructive"
               disabled={loading}
-              className="min-h-11 w-full sm:w-auto"
+              className="min-h-12 w-full sm:w-auto"
             >
               {loading && <Loader2 className="animate-spin" />}
               Cash out

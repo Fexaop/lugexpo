@@ -28,7 +28,6 @@ import { Button } from "@/components/ui/button";
 
 type ChallengeLink = { href: string; label: string };
 
-/** Normalize backend URLs / host:port into browser-openable hrefs. */
 function toHref(raw: string): string {
   const s = raw.trim();
   if (!s) return s;
@@ -62,7 +61,6 @@ function challengeLinks(c: CtfChallenge): ChallengeLink[] {
   return links;
 }
 
-/** Fisher–Yates shuffle (new array). */
 function shuffleArray<T>(items: T[]): T[] {
   const arr = [...items];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -82,9 +80,7 @@ export function CtfList() {
   const [challenges, setChallenges] = useState<CtfChallenge[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  /** True only for the first deal (full-screen pick-hand). */
   const [initialDeal, setInitialDeal] = useState(true);
-  /** Card deal / reshuffle animation phase — never leave "in" stuck on idle. */
   const [dealPhase, setDealPhase] = useState<DealPhase>("idle");
   const [dealKey, setDealKey] = useState(0);
   const [shuffling, setShuffling] = useState(false);
@@ -109,19 +105,44 @@ export function CtfList() {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    // Initial fetch — intentional mount load
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setError(null);
+      const started = Date.now();
+      try {
+        const data = await listCtfs();
+        if (!cancelled) setChallenges(data);
+      } catch (err) {
+        if (!cancelled) {
+          setError(
+            err instanceof Error ? err.message : "Failed to load challenges"
+          );
+        }
+      } finally {
+        const elapsed = Date.now() - started;
+        const wait = Math.max(0, MIN_LOAD_MS - elapsed);
+        window.setTimeout(() => {
+          if (cancelled) return;
+          setLoading(false);
+          setInitialDeal(false);
+        }, wait);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const reshuffle = useCallback(async () => {
     if (shuffling || loading) return;
     setShuffling(true);
     setError(null);
 
-    // 1) Fly cards out
     setDealPhase("out");
     await new Promise((r) => window.setTimeout(r, SHUFFLE_OUT_MS));
 
-    // 2) Fetch + shuffle while off-screen
     try {
       const data = await listCtfs();
       setChallenges(shuffleArray(data));
@@ -131,8 +152,6 @@ export function CtfList() {
     }
 
     setDealKey((k) => k + 1);
-
-    // 3) Deal cards back in, then clear animation class (critical for iOS)
     setDealPhase("in");
     await new Promise((r) => window.setTimeout(r, SHUFFLE_IN_MS));
     setDealPhase("idle");
@@ -167,8 +186,7 @@ export function CtfList() {
               </span>
             </div>
             <h1 className="font-display text-4xl leading-none tracking-wide text-balatro-cream sm:text-5xl md:text-6xl lg:text-7xl">
-              LUG EXPO{" "}
-              <span className="text-balatro-gold">CTF</span>
+              LUG EXPO <span className="text-balatro-gold">CTF</span>
             </h1>
             <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:mt-4 sm:text-base">
               Draw a challenge, crack it, cash the flag. Every solve rotates the
@@ -210,7 +228,7 @@ export function CtfList() {
       </header>
 
       {error && (
-        <div className="mb-6 rounded-xl border border-balatro-red/50 bg-red-950/50 px-4 py-3 text-sm text-red-200 shadow-[0_0_30px_rgba(222,68,59,0.15)]">
+        <div className="mb-6 rounded-xl border border-balatro-red/50 bg-red-950/50 px-4 py-3 text-sm text-red-200">
           {error}
         </div>
       )}
@@ -234,7 +252,6 @@ export function CtfList() {
           {challenges.map((c, i) => {
             const links = challengeLinks(c);
             const face = jokerForChallenge(c.id, i);
-            // Only attach anim class during active phases — never leave opacity:0 stuck (iOS)
             const animClass =
               dealPhase === "out"
                 ? "card-shuffle-out"
@@ -245,7 +262,7 @@ export function CtfList() {
             return (
               <article
                 key={c.id}
-                className={`relative flex w-full max-w-[300px] flex-col items-center lg:max-w-none ${animClass}`}
+                className={`relative flex w-full max-w-[300px] flex-col items-stretch lg:max-w-none ${animClass}`}
                 style={
                   {
                     "--deal-i": i,
@@ -261,54 +278,48 @@ export function CtfList() {
                 <DecayCard
                   width="100%"
                   height="auto"
-                  className="aspect-[280/360] w-full max-w-[300px] shrink-0 lg:max-w-none"
+                  className="aspect-[280/360] w-full shrink-0"
                   image={face}
                   seed={i + 1 + dealKey}
-                  maxDisplacement={360}
-                  movementBound={18}
+                  maxDisplacement={300}
+                  movementBound={14}
                   hoverOnly
                   baseFrequency={0.018}
                   numOctaves={5}
-                  textClassName="pointer-events-none absolute inset-0 z-[1] flex flex-col justify-between p-3 sm:p-3.5 lg:p-2.5 xl:p-3"
+                  textClassName="pointer-events-none absolute inset-0 z-[1] flex flex-col justify-between p-3"
                 >
                   <div className="flex items-start justify-between gap-1.5">
-                    <Badge className="border border-balatro-gold/50 bg-black/70 font-mono text-[9px] text-balatro-gold lg:text-[9px] xl:text-[10px]">
+                    <Badge className="border border-balatro-gold/50 bg-black/70 font-mono text-[9px] text-balatro-gold">
                       #{c.id}
                     </Badge>
                     <Badge
                       className={
                         c.running
-                          ? "border border-emerald-400/40 bg-emerald-950/80 text-[9px] uppercase tracking-wider text-emerald-300 lg:px-1.5"
-                          : "border border-zinc-500/40 bg-black/70 text-[9px] uppercase tracking-wider text-zinc-400 lg:px-1.5"
+                          ? "border border-emerald-400/40 bg-emerald-950/80 text-[9px] uppercase tracking-wider text-emerald-300"
+                          : "border border-zinc-500/40 bg-black/70 text-[9px] uppercase tracking-wider text-zinc-400"
                       }
                     >
                       {c.running ? "Live" : "Down"}
                     </Badge>
                   </div>
-                  <div className="rounded-lg bg-gradient-to-t from-black/85 via-black/55 to-transparent px-0.5 pb-0.5 pt-6 lg:pt-5">
+                  <div className="rounded-lg bg-gradient-to-t from-black/85 via-black/55 to-transparent px-0.5 pb-0.5 pt-6">
                     <p className="font-display text-2xl leading-none tracking-wide text-balatro-cream drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] lg:text-xl xl:text-2xl">
                       {c.name}
                     </p>
-                    <p className="mt-1.5 font-mono text-[10px] font-bold tracking-wider text-balatro-gold lg:text-[9px] xl:text-[10px]">
+                    <p className="mt-1.5 font-mono text-[10px] font-bold tracking-wider text-balatro-gold">
                       {c.points} PTS
                     </p>
                   </div>
                 </DecayCard>
 
-                {/*
-                  Info panel is a SIBLING of the card (not under SVG paint).
-                  Solid bg + transform:translateZ(0) forces its own layer on iOS.
-                */}
-                <div
-                  className="relative mt-3 w-full rounded-xl border border-balatro-gold/35 bg-[#0a1213] p-3 shadow-[0_12px_40px_rgba(0,0,0,0.55)] lg:p-2.5 xl:p-3"
-                  style={{
-                    transform: "translateZ(0)",
-                    WebkitTransform: "translateZ(0)",
-                    isolation: "isolate",
-                    zIndex: 2,
-                  }}
-                >
-                  <div className="mb-2 flex items-center justify-between gap-1 text-[11px] text-muted-foreground lg:text-[10px] xl:text-[11px]">
+                <div className="card-info-panel">
+                  {/* Play hand FIRST so it's always in view under the card on iPhone */}
+                  <SubmitFlagDialog
+                    challenge={c}
+                    onSuccess={() => load()}
+                  />
+
+                  <div className="mt-3 mb-2 flex items-center justify-between gap-1 text-[11px] text-muted-foreground">
                     <span className="min-w-0 truncate">
                       by{" "}
                       <span className="font-medium text-balatro-cream">
@@ -321,12 +332,12 @@ export function CtfList() {
                   </div>
 
                   {c.description ? (
-                    <p className="mb-2.5 text-[11px] leading-relaxed text-balatro-cream/85 lg:text-[10px] xl:text-[11px]">
+                    <p className="mb-2.5 text-[11px] leading-relaxed text-balatro-cream/85">
                       {c.description}
                     </p>
                   ) : null}
 
-                  <div className="mb-3 space-y-1.5">
+                  <div className="space-y-1.5">
                     {!c.running ? (
                       <p className="rounded-md border border-white/10 bg-black/50 px-2 py-1.5 text-[10px] text-zinc-400">
                         Not running
@@ -342,23 +353,14 @@ export function CtfList() {
                           href={link.href}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex items-start gap-1.5 rounded-md border border-balatro-blue/40 bg-black/50 px-2 py-1.5 font-mono text-[9px] leading-snug text-sky-300 transition active:bg-balatro-gold/10 hover:border-balatro-gold/50 hover:bg-balatro-gold/10 hover:text-balatro-gold xl:text-[10px]"
+                          className="flex items-start gap-1.5 rounded-md border border-balatro-blue/40 bg-black/50 px-2 py-1.5 font-mono text-[9px] leading-snug text-sky-300 active:bg-balatro-gold/10"
                         >
                           <ExternalLink className="mt-0.5 size-3 shrink-0" />
-                          <span className="break-all underline-offset-2 hover:underline">
-                            {link.label}
-                          </span>
+                          <span className="break-all">{link.label}</span>
                         </a>
                       ))
                     )}
                   </div>
-
-                  {/* Full-width CTA — always in document flow, never under card paint */}
-                  <SubmitFlagDialog
-                    challenge={c}
-                    onSuccess={() => load()}
-                    triggerClassName="play-hand-btn w-full"
-                  />
                 </div>
               </article>
             );
@@ -366,7 +368,7 @@ export function CtfList() {
         </div>
       )}
 
-      <footer className="pb-8 text-center font-body text-[10px] uppercase tracking-[0.28em] text-muted-foreground/70 sm:pb-10 sm:text-[11px] sm:tracking-[0.3em]">
+      <footer className="pb-8 text-center font-body text-[10px] uppercase tracking-[0.28em] text-muted-foreground/70 sm:pb-10 sm:text-[11px]">
         LUG Expo · Balatro table · Play your hand
       </footer>
     </div>

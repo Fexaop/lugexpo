@@ -18,10 +18,6 @@ interface DecayCardProps {
   seed?: number;
   maxDisplacement?: number;
   movementBound?: number;
-  /**
-   * When true (default), only this card reacts while the pointer is over it.
-   * When false, tracks window mouse like the stock React Bits demo.
-   */
   hoverOnly?: boolean;
   className?: string;
   textClassName?: string;
@@ -47,12 +43,9 @@ function getDesktopFxEnabled() {
 }
 
 /**
- * React Bits — Decay Card
- * https://reactbits.dev/components/decay-card
- *
- * Desktop: SVG turbulence + displacement inside a fixed clipped frame.
- * Touch / coarse pointer (iPhone): plain clipped image — Safari SVG filters
- * paint outside overflow:hidden and can cover the CTA under the card.
+ * Card face inside a fixed border frame.
+ * Motion never leaves the frame (transform on inner media only + overflow clip).
+ * Touch devices: plain <img> — no SVG filters (Safari paints them outside the box).
  */
 const DecayCard: React.FC<DecayCardProps> = ({
   width = 300,
@@ -61,8 +54,8 @@ const DecayCard: React.FC<DecayCardProps> = ({
   baseFrequency = 0.015,
   numOctaves = 5,
   seed = 4,
-  maxDisplacement = 520,
-  movementBound = 22,
+  maxDisplacement = 360,
+  movementBound = 16,
   hoverOnly = true,
   className = "",
   textClassName = "",
@@ -73,7 +66,6 @@ const DecayCard: React.FC<DecayCardProps> = ({
   const mediaRef = useRef<HTMLDivElement>(null);
   const displacementMapRef = useRef<SVGFEDisplacementMapElement>(null);
   const activeRef = useRef(!hoverOnly);
-  /** Desktop fine-pointer only — false on iPhone (SSR-safe) */
   const useEffectFx = useSyncExternalStore(
     subscribeMedia,
     getDesktopFxEnabled,
@@ -83,7 +75,6 @@ const DecayCard: React.FC<DecayCardProps> = ({
   const cursor = useRef({ x: 0, y: 0 });
   const cachedCursor = useRef({ x: 0, y: 0 });
   const winsize = useRef({ width: 0, height: 0 });
-
 
   useEffect(() => {
     if (!useEffectFx) return;
@@ -120,10 +111,6 @@ const DecayCard: React.FC<DecayCardProps> = ({
       cursor.current = { x: ev.clientX, y: ev.clientY };
     };
 
-    const handlePointerMove = (ev: PointerEvent) => {
-      cursor.current = { x: ev.clientX, y: ev.clientY };
-    };
-
     const release = () => {
       if (!hoverOnly) return;
       activeRef.current = false;
@@ -138,12 +125,16 @@ const DecayCard: React.FC<DecayCardProps> = ({
       cursor.current = { x: ev.clientX, y: ev.clientY };
     };
 
+    const onMove = (ev: PointerEvent) => {
+      cursor.current = { x: ev.clientX, y: ev.clientY };
+    };
+
     window.addEventListener("resize", handleResize);
     window.addEventListener("mousemove", handleMouseMove);
     if (hoverOnly) {
       frame.addEventListener("pointerenter", onEnter);
       frame.addEventListener("pointerleave", release);
-      frame.addEventListener("pointermove", handlePointerMove);
+      frame.addEventListener("pointermove", onMove);
     }
 
     const imgValues = {
@@ -161,21 +152,21 @@ const DecayCard: React.FC<DecayCardProps> = ({
       let targetX = active
         ? lerp(
             imgValues.imgTransforms.x,
-            map(cursor.current.x, 0, w, -movementBound * 1.2, movementBound * 1.2),
+            map(cursor.current.x, 0, w, -movementBound, movementBound),
             0.1
           )
         : lerp(imgValues.imgTransforms.x, 0, 0.16);
       let targetY = active
         ? lerp(
             imgValues.imgTransforms.y,
-            map(cursor.current.y, 0, h, -movementBound * 1.2, movementBound * 1.2),
+            map(cursor.current.y, 0, h, -movementBound, movementBound),
             0.1
           )
         : lerp(imgValues.imgTransforms.y, 0, 0.16);
       const targetRz = active
         ? lerp(
             imgValues.imgTransforms.rz,
-            map(cursor.current.x, 0, w, -6, 6),
+            map(cursor.current.x, 0, w, -5, 5),
             0.1
           )
         : lerp(imgValues.imgTransforms.rz, 0, 0.16);
@@ -188,9 +179,9 @@ const DecayCard: React.FC<DecayCardProps> = ({
       imgValues.imgTransforms.rz = targetRz;
 
       gsap.set(media, {
-        x: imgValues.imgTransforms.x,
-        y: imgValues.imgTransforms.y,
-        rotateZ: imgValues.imgTransforms.rz,
+        x: targetX,
+        y: targetY,
+        rotateZ: targetRz,
       });
 
       const cursorTravelledDistance = active
@@ -228,7 +219,7 @@ const DecayCard: React.FC<DecayCardProps> = ({
       window.removeEventListener("mousemove", handleMouseMove);
       frame.removeEventListener("pointerenter", onEnter);
       frame.removeEventListener("pointerleave", release);
-      frame.removeEventListener("pointermove", handlePointerMove);
+      frame.removeEventListener("pointermove", onMove);
       gsap.set(media, { clearProps: "transform" });
     };
   }, [maxDisplacement, movementBound, hoverOnly, useEffectFx]);
@@ -243,16 +234,11 @@ const DecayCard: React.FC<DecayCardProps> = ({
   return (
     <div
       ref={frameRef}
-      className={`relative overflow-hidden rounded-xl border-2 border-balatro-gold/55 bg-[#0a0e10] shadow-[0_12px_32px_rgba(0,0,0,0.55),inset_0_0_0_1px_rgba(245,197,66,0.12)] ${className}`}
+      className={`card-face-frame relative ${className}`}
       style={style}
     >
-      {/* Clip layer — double-wrap so iOS can't paint SVG filters outside the border */}
-      <div className="absolute inset-0 overflow-hidden rounded-[10px]">
-        <div
-          ref={mediaRef}
-          className="absolute inset-0"
-          style={useEffectFx ? { willChange: "transform" } : undefined}
-        >
+      <div className="card-face-clip">
+        <div ref={mediaRef} className="absolute inset-0">
           {useEffectFx ? (
             <svg
               viewBox="0 0 600 750"
@@ -260,7 +246,7 @@ const DecayCard: React.FC<DecayCardProps> = ({
               className="block h-full w-full"
               aria-hidden
             >
-              <filter id={filterId} x="-10%" y="-10%" width="120%" height="120%">
+              <filter id={filterId} x="0%" y="0%" width="100%" height="100%">
                 <feTurbulence
                   type="turbulence"
                   baseFrequency={baseFrequency}
