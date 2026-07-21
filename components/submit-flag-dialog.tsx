@@ -1,19 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Loader2, Spade } from "lucide-react";
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
+import { Loader2, Spade, X } from "lucide-react";
 
 import type { CtfChallenge, FlagSubmitResult } from "@/lib/api";
 import { submitFlag } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -23,13 +15,29 @@ type Props = {
 };
 
 const fieldClass =
-  "box-border w-full min-h-[48px] rounded-lg border border-balatro-gold/30 bg-black/50 px-3 py-3 text-base leading-normal text-balatro-cream outline-none placeholder:text-muted-foreground focus:border-balatro-gold focus:ring-2 focus:ring-balatro-gold/40 disabled:opacity-50";
+  "box-border w-full min-h-[48px] rounded-lg border border-balatro-gold/35 bg-black/60 px-3 py-3 text-base text-balatro-cream outline-none placeholder:text-zinc-500 focus:border-balatro-gold focus:ring-2 focus:ring-balatro-gold/35";
 
+/** Client-only gate for portals (SSR-safe). */
+function useIsClient() {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+}
+
+/**
+ * Fullscreen scrollable form — no visualViewport math, no bottom-sheet hacks.
+ * iOS can always see it (fixed inset:0 + overflow scroll) and will scroll
+ * focused fields into view with extra bottom padding for the keyboard.
+ */
 export function SubmitFlagDialog({
   challenge,
   onSuccess,
   triggerClassName,
 }: Props) {
+  const titleId = useId();
+  const isClient = useIsClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -40,6 +48,40 @@ export function SubmitFlagDialog({
     type: "ok" | "err";
     text: string;
   } | null>(null);
+
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const prevBodyOverflow = useRef("");
+  const prevBodyFilter = useRef("");
+
+  // Lock page scroll + drop body filter while open (filter breaks fixed UI on iOS)
+  useEffect(() => {
+    if (!open) return;
+
+    prevBodyOverflow.current = document.body.style.overflow;
+    prevBodyFilter.current = document.body.style.filter;
+    document.body.style.overflow = "hidden";
+    document.body.style.filter = "none";
+
+    return () => {
+      document.body.style.overflow = prevBodyOverflow.current;
+      document.body.style.filter = prevBodyFilter.current;
+    };
+  }, [open]);
+
+  // Escape to close
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  function close() {
+    setOpen(false);
+    setMessage(null);
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -76,15 +118,200 @@ export function SubmitFlagDialog({
     }
   }
 
+  /** Keep the active field visible above the keyboard by scrolling the panel. */
+  function onFieldFocus(e: React.FocusEvent<HTMLInputElement>) {
+    const field = e.currentTarget;
+    const scroller = scrollerRef.current;
+    if (!scroller) return;
+
+    // Let the keyboard animate, then scroll field toward the upper half
+    const scroll = () => {
+      const scRect = scroller.getBoundingClientRect();
+      const fRect = field.getBoundingClientRect();
+      const targetY = scRect.top + scRect.height * 0.28;
+      const delta = fRect.top - targetY;
+      if (Math.abs(delta) > 8) {
+        scroller.scrollBy({ top: delta, behavior: "smooth" });
+      }
+    };
+    window.setTimeout(scroll, 100);
+    window.setTimeout(scroll, 300);
+    window.setTimeout(scroll, 500);
+  }
+
+  const panel =
+    open && isClient
+      ? createPortal(
+          <div
+            className="fixed inset-0 z-[300] flex flex-col bg-[#070b0c]"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={titleId}
+          >
+            {/* Sticky top bar — always visible */}
+            <header className="flex shrink-0 items-start justify-between gap-3 border-b border-balatro-gold/25 bg-[#0e181a] px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+              <div className="min-w-0 pt-1">
+                <p className="font-display text-[11px] tracking-[0.35em] text-balatro-gold">
+                  SUBMIT FLAG
+                </p>
+                <h2
+                  id={titleId}
+                  className="font-display mt-1 text-2xl tracking-wide text-balatro-cream"
+                >
+                  {challenge.name}
+                </h2>
+                <p className="mt-1 text-sm text-zinc-400">
+                  Fill in your details and the flag.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={close}
+                className="mt-0.5 shrink-0 rounded-lg border border-white/10 bg-black/40 p-2.5 text-balatro-cream active:bg-white/10"
+                aria-label="Close"
+              >
+                <X className="size-5" />
+              </button>
+            </header>
+
+            {/* Scrollable form — extra bottom pad so fields clear the keyboard */}
+            <div
+              ref={scrollerRef}
+              className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4"
+              style={{
+                WebkitOverflowScrolling: "touch",
+                // Big bottom space: keyboard covers lower screen; user can scroll up
+                paddingBottom: "max(12rem, 45vh)",
+              }}
+            >
+              <form onSubmit={onSubmit} className="mx-auto w-full max-w-md space-y-4">
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor={`name-${challenge.id}`}
+                    className="block text-sm text-balatro-cream/90"
+                  >
+                    Name
+                  </label>
+                  <input
+                    id={`name-${challenge.id}`}
+                    name="name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onFocus={onFieldFocus}
+                    required
+                    autoComplete="name"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="Your name"
+                    className={fieldClass}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor={`email-${challenge.id}`}
+                    className="block text-sm text-balatro-cream/90"
+                  >
+                    Email
+                  </label>
+                  <input
+                    id={`email-${challenge.id}`}
+                    name="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onFocus={onFieldFocus}
+                    required
+                    autoComplete="email"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    inputMode="email"
+                    placeholder="you@example.com"
+                    className={fieldClass}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor={`reg-${challenge.id}`}
+                    className="block text-sm text-balatro-cream/90"
+                  >
+                    Reg no
+                  </label>
+                  <input
+                    id={`reg-${challenge.id}`}
+                    name="reg_no"
+                    type="text"
+                    value={regNo}
+                    onChange={(e) => setRegNo(e.target.value)}
+                    onFocus={onFieldFocus}
+                    required
+                    autoComplete="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="Registration number"
+                    className={fieldClass}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label
+                    htmlFor={`flag-${challenge.id}`}
+                    className="block text-sm text-balatro-cream/90"
+                  >
+                    Flag
+                  </label>
+                  <input
+                    id={`flag-${challenge.id}`}
+                    name="flag"
+                    type="text"
+                    value={flag}
+                    onChange={(e) => setFlag(e.target.value)}
+                    onFocus={onFieldFocus}
+                    required
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    placeholder="flag{...}"
+                    className={cn(
+                      fieldClass,
+                      "border-balatro-red/50 font-mono focus:border-balatro-red focus:ring-balatro-red/35"
+                    )}
+                  />
+                </div>
+
+                {message && (
+                  <p
+                    className={
+                      message.type === "ok"
+                        ? "rounded-md border border-emerald-500/40 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300"
+                        : "rounded-md border border-balatro-red/50 bg-red-950/40 px-3 py-2 text-sm text-red-300"
+                    }
+                  >
+                    {message.text}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-balatro-red px-4 text-base font-semibold text-white shadow-[0_4px_0_#8b1e18] active:translate-y-0.5 active:shadow-none disabled:opacity-60"
+                >
+                  {loading && <Loader2 className="size-4 animate-spin" />}
+                  Cash out
+                </button>
+              </form>
+            </div>
+          </div>,
+          document.body
+        )
+      : null;
+
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        setOpen(v);
-        if (!v) setMessage(null);
-      }}
-      modal
-    >
+    <>
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -93,163 +320,7 @@ export function SubmitFlagDialog({
         <Spade className="size-4 shrink-0" aria-hidden />
         <span>Play hand</span>
       </button>
-
-      <DialogContent
-        // tabIndex so we can focus the panel without focusing an input
-        tabIndex={-1}
-        className="border-2 border-balatro-gold/40 bg-[#0e181a] p-0 shadow-[0_0_60px_rgba(222,68,59,0.25)] sm:max-w-md sm:p-0"
-      >
-        {/*
-          Layout: header (fixed) + scrollable form + footer (fixed).
-          Panel height = visual viewport, so when keyboard opens the scroll
-          area shrinks and the focused field can still be reached.
-          Native <input> — not wrapped in anything that steals touch/focus.
-        */}
-        <div className="flex h-full min-h-0 flex-col">
-          <DialogHeader className="shrink-0 border-b border-balatro-gold/15 px-4 pb-2.5 pt-3.5 pr-14 text-left sm:pt-4">
-            <p className="font-display text-[11px] tracking-[0.35em] text-balatro-gold">
-              SUBMIT FLAG
-            </p>
-            <DialogTitle className="font-display text-2xl tracking-wide text-balatro-cream">
-              {challenge.name}
-            </DialogTitle>
-            <DialogDescription className="text-sm text-muted-foreground">
-              Fill in your details and the flag.
-            </DialogDescription>
-          </DialogHeader>
-
-          <form
-            onSubmit={onSubmit}
-            className="flex min-h-0 flex-1 flex-col"
-          >
-            <div
-              data-sheet-scroll
-              className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-3 pb-6"
-              style={{ WebkitOverflowScrolling: "touch" }}
-            >
-              <div className="space-y-1.5">
-                <Label
-                  htmlFor={`name-${challenge.id}`}
-                  className="text-sm text-balatro-cream/90"
-                >
-                  Name
-                </Label>
-                <input
-                  id={`name-${challenge.id}`}
-                  name="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  required
-                  autoComplete="name"
-                  autoCorrect="off"
-                  autoCapitalize="words"
-                  spellCheck={false}
-                  placeholder="Your name"
-                  className={fieldClass}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label
-                  htmlFor={`email-${challenge.id}`}
-                  className="text-sm text-balatro-cream/90"
-                >
-                  Email
-                </Label>
-                <input
-                  id={`email-${challenge.id}`}
-                  name="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  autoComplete="email"
-                  autoCorrect="off"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  inputMode="email"
-                  placeholder="you@example.com"
-                  className={fieldClass}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label
-                  htmlFor={`reg-${challenge.id}`}
-                  className="text-sm text-balatro-cream/90"
-                >
-                  Reg no
-                </Label>
-                <input
-                  id={`reg-${challenge.id}`}
-                  name="reg_no"
-                  type="text"
-                  value={regNo}
-                  onChange={(e) => setRegNo(e.target.value)}
-                  required
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="characters"
-                  spellCheck={false}
-                  placeholder="Registration number"
-                  className={fieldClass}
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label
-                  htmlFor={`flag-${challenge.id}`}
-                  className="text-sm text-balatro-cream/90"
-                >
-                  Flag
-                </Label>
-                <input
-                  id={`flag-${challenge.id}`}
-                  name="flag"
-                  type="text"
-                  value={flag}
-                  onChange={(e) => setFlag(e.target.value)}
-                  required
-                  autoComplete="off"
-                  autoCorrect="off"
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  placeholder="flag{...}"
-                  className={cn(
-                    fieldClass,
-                    "border-balatro-red/45 font-mono focus:border-balatro-red focus:ring-balatro-red/40"
-                  )}
-                />
-              </div>
-
-              {message && (
-                <p
-                  className={
-                    message.type === "ok"
-                      ? "rounded-md border border-emerald-500/40 bg-emerald-950/40 px-3 py-2 text-sm text-emerald-300"
-                      : "rounded-md border border-balatro-red/50 bg-red-950/40 px-3 py-2 text-sm text-red-300"
-                  }
-                >
-                  {message.text}
-                </p>
-              )}
-            </div>
-
-            <div className="shrink-0 border-t border-balatro-gold/15 bg-[#0e181a] px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-              <Button
-                type="submit"
-                variant="destructive"
-                disabled={loading}
-                className="min-h-12 w-full text-base"
-              >
-                {loading && <Loader2 className="animate-spin" />}
-                Cash out
-              </Button>
-            </div>
-          </form>
-        </div>
-      </DialogContent>
-    </Dialog>
+      {panel}
+    </>
   );
 }
