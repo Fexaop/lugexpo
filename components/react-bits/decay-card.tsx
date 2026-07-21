@@ -18,34 +18,33 @@ interface DecayCardProps {
   seed?: number;
   maxDisplacement?: number;
   movementBound?: number;
+  /**
+   * When true (default), only this card reacts while the pointer is over it.
+   * When false, tracks window mouse like the stock React Bits demo.
+   */
   hoverOnly?: boolean;
   className?: string;
   textClassName?: string;
   children?: ReactNode;
 }
 
-function subscribeMedia(cb: () => void) {
-  const q1 = window.matchMedia("(hover: hover) and (pointer: fine)");
-  const q2 = window.matchMedia("(prefers-reduced-motion: reduce)");
-  q1.addEventListener("change", cb);
-  q2.addEventListener("change", cb);
-  return () => {
-    q1.removeEventListener("change", cb);
-    q2.removeEventListener("change", cb);
-  };
+function subscribeReducedMotion(cb: () => void) {
+  const q = window.matchMedia("(prefers-reduced-motion: reduce)");
+  q.addEventListener("change", cb);
+  return () => q.removeEventListener("change", cb);
 }
 
-function getDesktopFxEnabled() {
-  return (
-    window.matchMedia("(hover: hover) and (pointer: fine)").matches &&
-    !window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
+function getReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
 /**
- * Card face inside a fixed border frame.
- * Motion never leaves the frame (transform on inner media only + overflow clip).
- * Touch devices: plain <img> — no SVG filters (Safari paints them outside the box).
+ * React Bits — Decay Card
+ * https://reactbits.dev/components/decay-card
+ *
+ * Works on desktop + phone. Outer gold frame stays fixed; transform +
+ * displacement apply only to the inner media so motion stays inside the border.
+ * Touch: drag finger on the card to drive the decay/tilt (same as hover).
  */
 const DecayCard: React.FC<DecayCardProps> = ({
   width = 300,
@@ -54,8 +53,8 @@ const DecayCard: React.FC<DecayCardProps> = ({
   baseFrequency = 0.015,
   numOctaves = 5,
   seed = 4,
-  maxDisplacement = 360,
-  movementBound = 16,
+  maxDisplacement = 420,
+  movementBound = 18,
   hoverOnly = true,
   className = "",
   textClassName = "",
@@ -66,9 +65,9 @@ const DecayCard: React.FC<DecayCardProps> = ({
   const mediaRef = useRef<HTMLDivElement>(null);
   const displacementMapRef = useRef<SVGFEDisplacementMapElement>(null);
   const activeRef = useRef(!hoverOnly);
-  const useEffectFx = useSyncExternalStore(
-    subscribeMedia,
-    getDesktopFxEnabled,
+  const reduceMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    getReducedMotion,
     () => false
   );
 
@@ -77,7 +76,7 @@ const DecayCard: React.FC<DecayCardProps> = ({
   const winsize = useRef({ width: 0, height: 0 });
 
   useEffect(() => {
-    if (!useEffectFx) return;
+    if (reduceMotion) return;
 
     const frame = frameRef.current;
     const media = mediaRef.current;
@@ -125,8 +124,33 @@ const DecayCard: React.FC<DecayCardProps> = ({
       cursor.current = { x: ev.clientX, y: ev.clientY };
     };
 
+    const onDown = (ev: PointerEvent) => {
+      // Touch / pen: press to engage the effect
+      if (ev.pointerType === "touch" || ev.pointerType === "pen") {
+        activeRef.current = true;
+        cursor.current = { x: ev.clientX, y: ev.clientY };
+        try {
+          frame.setPointerCapture(ev.pointerId);
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+
     const onMove = (ev: PointerEvent) => {
+      if (!activeRef.current && hoverOnly) return;
       cursor.current = { x: ev.clientX, y: ev.clientY };
+    };
+
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerType === "touch" || ev.pointerType === "pen") {
+        release();
+        try {
+          frame.releasePointerCapture(ev.pointerId);
+        } catch {
+          /* ignore */
+        }
+      }
     };
 
     window.addEventListener("resize", handleResize);
@@ -134,7 +158,10 @@ const DecayCard: React.FC<DecayCardProps> = ({
     if (hoverOnly) {
       frame.addEventListener("pointerenter", onEnter);
       frame.addEventListener("pointerleave", release);
+      frame.addEventListener("pointerdown", onDown);
       frame.addEventListener("pointermove", onMove);
+      frame.addEventListener("pointerup", onUp);
+      frame.addEventListener("pointercancel", onUp);
     }
 
     const imgValues = {
@@ -152,25 +179,26 @@ const DecayCard: React.FC<DecayCardProps> = ({
       let targetX = active
         ? lerp(
             imgValues.imgTransforms.x,
-            map(cursor.current.x, 0, w, -movementBound, movementBound),
-            0.1
+            map(cursor.current.x, 0, w, -movementBound * 1.15, movementBound * 1.15),
+            0.12
           )
         : lerp(imgValues.imgTransforms.x, 0, 0.16);
       let targetY = active
         ? lerp(
             imgValues.imgTransforms.y,
-            map(cursor.current.y, 0, h, -movementBound, movementBound),
-            0.1
+            map(cursor.current.y, 0, h, -movementBound * 1.15, movementBound * 1.15),
+            0.12
           )
         : lerp(imgValues.imgTransforms.y, 0, 0.16);
       const targetRz = active
         ? lerp(
             imgValues.imgTransforms.rz,
-            map(cursor.current.x, 0, w, -5, 5),
-            0.1
+            map(cursor.current.x, 0, w, -7, 7),
+            0.12
           )
         : lerp(imgValues.imgTransforms.rz, 0, 0.16);
 
+      // Hard clamp — stay inside the frame
       targetX = Math.max(-movementBound, Math.min(movementBound, targetX));
       targetY = Math.max(-movementBound, Math.min(movementBound, targetY));
 
@@ -219,10 +247,13 @@ const DecayCard: React.FC<DecayCardProps> = ({
       window.removeEventListener("mousemove", handleMouseMove);
       frame.removeEventListener("pointerenter", onEnter);
       frame.removeEventListener("pointerleave", release);
+      frame.removeEventListener("pointerdown", onDown);
       frame.removeEventListener("pointermove", onMove);
+      frame.removeEventListener("pointerup", onUp);
+      frame.removeEventListener("pointercancel", onUp);
       gsap.set(media, { clearProps: "transform" });
     };
-  }, [maxDisplacement, movementBound, hoverOnly, useEffectFx]);
+  }, [maxDisplacement, movementBound, hoverOnly, reduceMotion]);
 
   const style: React.CSSProperties = {
     width: typeof width === "number" ? `${width}px` : width,
@@ -234,19 +265,31 @@ const DecayCard: React.FC<DecayCardProps> = ({
   return (
     <div
       ref={frameRef}
-      className={`card-face-frame relative ${className}`}
+      className={`card-face-frame relative touch-none ${className}`}
       style={style}
     >
       <div className="card-face-clip">
-        <div ref={mediaRef} className="absolute inset-0">
-          {useEffectFx ? (
+        <div
+          ref={mediaRef}
+          className="absolute inset-0"
+          style={reduceMotion ? undefined : { willChange: "transform" }}
+        >
+          {reduceMotion ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={image}
+              alt=""
+              draggable={false}
+              className="h-full w-full object-cover select-none"
+            />
+          ) : (
             <svg
               viewBox="0 0 600 750"
               preserveAspectRatio="xMidYMid slice"
               className="block h-full w-full"
               aria-hidden
             >
-              <filter id={filterId} x="0%" y="0%" width="100%" height="100%">
+              <filter id={filterId} x="-5%" y="-5%" width="110%" height="110%">
                 <feTurbulence
                   type="turbulence"
                   baseFrequency={baseFrequency}
@@ -275,14 +318,6 @@ const DecayCard: React.FC<DecayCardProps> = ({
                 preserveAspectRatio="xMidYMid slice"
               />
             </svg>
-          ) : (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={image}
-              alt=""
-              draggable={false}
-              className="h-full w-full object-cover select-none"
-            />
           )}
         </div>
       </div>

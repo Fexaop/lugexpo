@@ -222,13 +222,9 @@ body {
   }
 }
 
-/* Mild CRT color grade — DESKTOP ONLY.
-   body { filter } on iOS Safari breaks compositing of descendants
-   (buttons/cards can stay invisible until a reflow such as typing). */
-@media (hover: hover) and (pointer: fine) {
-  .desktop-crt-grade {
-    filter: contrast(1.06) brightness(0.98) saturate(1.08);
-  }
+/* Mild CRT color grade on the whole page */
+.crt-grade {
+  filter: contrast(1.06) brightness(0.98) saturate(1.08);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -305,25 +301,14 @@ body {
 .felt-panel {
   background: linear-gradient(
     165deg,
-    rgba(10, 22, 18, 0.92) 0%,
-    rgba(8, 14, 16, 0.96) 100%
+    rgba(10, 22, 18, 0.72) 0%,
+    rgba(8, 14, 16, 0.82) 100%
   );
   border: 1px solid rgba(245, 197, 66, 0.22);
   box-shadow:
     0 0 0 1px rgba(0, 0, 0, 0.4) inset,
     0 20px 50px rgba(0, 0, 0, 0.45);
-}
-
-/* backdrop-filter only on desktop — iOS paint bugs */
-@media (hover: hover) and (pointer: fine) {
-  .felt-panel {
-    background: linear-gradient(
-      165deg,
-      rgba(10, 22, 18, 0.72) 0%,
-      rgba(8, 14, 16, 0.82) 100%
-    );
-    backdrop-filter: blur(10px);
-  }
+  backdrop-filter: blur(10px);
 }
 
 /* ========== Card face frame (motion stays inside border) ========== */
