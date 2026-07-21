@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.gitignore
+*.md
+.env*
+!.env.example
+Dockerfile*
+docker-compose*.yml
+.pnpm-store
+coverage
+tsconfig.tsbuildinfo
+.DS_Store

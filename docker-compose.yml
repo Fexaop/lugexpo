@@ -1,0 +1,18 @@
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # baked only if needed; rewrites use runtime BACKEND_URL below
+        BACKEND_URL: ${BACKEND_URL:-http://host.docker.internal:8080}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      # pwncore API reachable FROM the container
+      # host machine: host.docker.internal (Docker Desktop / compose extra_hosts)
+      # same docker network service: http://pwncore:8080
+      BACKEND_URL: ${BACKEND_URL:-http://host.docker.internal:8080}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped

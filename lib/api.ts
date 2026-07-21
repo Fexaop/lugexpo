@@ -1,5 +1,9 @@
+/**
+ * Prefer same-origin /api (proxied by Next → pwncore via BACKEND_URL).
+ * Override with NEXT_PUBLIC_API_URL only if you want the browser to call the API host directly.
+ */
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "http://127.0.0.1:8080";
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || "";
 
 export type CtfChallenge = {
   id: number;
@@ -47,8 +51,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg =
-      (data as { msg?: string }).msg ||
-      `Request failed (${res.status})`;
+      (data as { msg?: string }).msg || `Request failed (${res.status})`;
     throw new Error(msg);
   }
   return data as T;
@@ -73,7 +76,6 @@ export async function submitFlag(
     cache: "no-store",
   });
   const data = (await res.json().catch(() => ({}))) as FlagSubmitResult;
-  // Always surface API body (correct / incorrect / already solved)
   if (typeof data.status === "boolean") {
     return data;
   }
