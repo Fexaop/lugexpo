@@ -12,14 +12,22 @@ interface DecayCardProps {
   seed?: number;
   maxDisplacement?: number;
   movementBound?: number;
-  /** Only animate when pointer is over this card (default true). */
+  /**
+   * When true (default), only this card reacts while the pointer is over it.
+   * When false, tracks window mouse like the stock React Bits demo.
+   */
   hoverOnly?: boolean;
   className?: string;
   textClassName?: string;
   children?: ReactNode;
 }
 
-/** React Bits — Decay Card (https://reactbits.dev/components/decay-card) */
+/**
+ * React Bits — Decay Card
+ * https://reactbits.dev/components/decay-card
+ *
+ * Full SVG turbulence + displacement + gsap tilt, intensity tuned up.
+ */
 const DecayCard: React.FC<DecayCardProps> = ({
   width = 300,
   height = 400,
@@ -27,102 +35,139 @@ const DecayCard: React.FC<DecayCardProps> = ({
   baseFrequency = 0.015,
   numOctaves = 5,
   seed = 4,
-  maxDisplacement = 100,
-  movementBound = 24,
+  maxDisplacement = 520,
+  movementBound = 55,
   hoverOnly = true,
   className = "",
   textClassName = "",
   children,
 }) => {
   const filterId = useId().replace(/:/g, "");
-  const rootRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<HTMLDivElement>(null);
   const displacementMapRef = useRef<SVGFEDisplacementMapElement>(null);
-  const activeRef = useRef(false);
-  const pointer = useRef({ x: 0.5, y: 0.5 });
-  const prevPointer = useRef({ x: 0.5, y: 0.5 });
+  const activeRef = useRef(!hoverOnly);
+
+  const cursor = useRef({ x: 0, y: 0 });
+  const cachedCursor = useRef({ x: 0, y: 0 });
+  const winsize = useRef({ width: 0, height: 0 });
 
   useEffect(() => {
-    const el = rootRef.current;
+    const el = svgRef.current;
     if (!el) return;
 
-    // Skip heavy motion on touch-primary devices
-    const reduceMotion =
-      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      window.matchMedia("(hover: none)").matches;
+    cursor.current = {
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+    };
+    cachedCursor.current = { ...cursor.current };
+    winsize.current = {
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+    activeRef.current = !hoverOnly;
 
     const lerp = (a: number, b: number, n: number) => (1 - n) * a + n * b;
+    const map = (x: number, a: number, b: number, c: number, d: number) =>
+      ((x - a) * (d - c)) / (b - a) + c;
+    const distance = (x1: number, x2: number, y1: number, y2: number) =>
+      Math.hypot(x1 - x2, y1 - y2);
 
-    const imgValues = {
-      x: 0,
-      y: 0,
-      rz: 0,
-      displacementScale: 0,
-    };
-
-    const setActive = (on: boolean) => {
-      activeRef.current = on;
-      if (!on) {
-        // Reset pointer delta so displacement eases out
-        prevPointer.current = { ...pointer.current };
-      }
-    };
-
-    const onEnter = () => setActive(true);
-    const onLeave = () => setActive(false);
-
-    const onMove = (ev: PointerEvent) => {
-      if (hoverOnly && !activeRef.current) return;
-      const rect = el.getBoundingClientRect();
-      if (rect.width < 1 || rect.height < 1) return;
-      pointer.current = {
-        x: (ev.clientX - rect.left) / rect.width,
-        y: (ev.clientY - rect.top) / rect.height,
+    const handleResize = () => {
+      winsize.current = {
+        width: window.innerWidth,
+        height: window.innerHeight,
       };
-      if (!hoverOnly) setActive(true);
     };
 
-    if (!reduceMotion) {
+    // Stock React Bits: window mousemove drives the effect
+    const handleMouseMove = (ev: MouseEvent) => {
+      cursor.current = { x: ev.clientX, y: ev.clientY };
+    };
+
+    const onEnter = () => {
+      activeRef.current = true;
+    };
+    const onLeave = () => {
+      if (hoverOnly) activeRef.current = false;
+    };
+
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("mousemove", handleMouseMove);
+    if (hoverOnly) {
       el.addEventListener("pointerenter", onEnter);
       el.addEventListener("pointerleave", onLeave);
-      el.addEventListener("pointermove", onMove);
     }
+
+    const imgValues = {
+      imgTransforms: { x: 0, y: 0, rz: 0 },
+      displacementScale: 0,
+    };
 
     let rafId = 0;
 
     const render = () => {
-      const active = !reduceMotion && activeRef.current;
+      const active = activeRef.current;
+      const w = winsize.current.width || 1;
+      const h = winsize.current.height || 1;
 
-      // Local tilt from pointer position inside the card (0–1 → -bound…bound)
-      const targetX = active
-        ? (pointer.current.x - 0.5) * 2 * movementBound
-        : 0;
-      const targetY = active
-        ? (pointer.current.y - 0.5) * 2 * movementBound
-        : 0;
-      const targetRz = active ? (pointer.current.x - 0.5) * 2 * 6 : 0;
+      // Original React Bits mapping (full intensity when active)
+      let targetX = active
+        ? lerp(
+            imgValues.imgTransforms.x,
+            map(cursor.current.x, 0, w, -120, 120),
+            0.1
+          )
+        : lerp(imgValues.imgTransforms.x, 0, 0.12);
+      let targetY = active
+        ? lerp(
+            imgValues.imgTransforms.y,
+            map(cursor.current.y, 0, h, -120, 120),
+            0.1
+          )
+        : lerp(imgValues.imgTransforms.y, 0, 0.12);
+      let targetRz = active
+        ? lerp(
+            imgValues.imgTransforms.rz,
+            map(cursor.current.x, 0, w, -10, 10),
+            0.1
+          )
+        : lerp(imgValues.imgTransforms.rz, 0, 0.12);
 
-      imgValues.x = lerp(imgValues.x, targetX, 0.12);
-      imgValues.y = lerp(imgValues.y, targetY, 0.12);
-      imgValues.rz = lerp(imgValues.rz, targetRz, 0.12);
+      // Soft clamp past movementBound (stock behaviour)
+      if (targetX > movementBound)
+        targetX = movementBound + (targetX - movementBound) * 0.2;
+      if (targetX < -movementBound)
+        targetX = -movementBound + (targetX + movementBound) * 0.2;
+      if (targetY > movementBound)
+        targetY = movementBound + (targetY - movementBound) * 0.2;
+      if (targetY < -movementBound)
+        targetY = -movementBound + (targetY + movementBound) * 0.2;
+
+      imgValues.imgTransforms.x = targetX;
+      imgValues.imgTransforms.y = targetY;
+      imgValues.imgTransforms.rz = targetRz;
 
       gsap.set(el, {
-        x: imgValues.x,
-        y: imgValues.y,
-        rotateZ: imgValues.rz,
+        x: imgValues.imgTransforms.x,
+        y: imgValues.imgTransforms.y,
+        rotateZ: imgValues.imgTransforms.rz,
       });
 
-      const dx = (pointer.current.x - prevPointer.current.x) * 400;
-      const dy = (pointer.current.y - prevPointer.current.y) * 400;
-      const travel = active ? Math.hypot(dx, dy) : 0;
-      const targetDisp = Math.min(
-        maxDisplacement,
-        (travel / 200) * maxDisplacement
-      );
+      const cursorTravelledDistance = active
+        ? distance(
+            cachedCursor.current.x,
+            cursor.current.x,
+            cachedCursor.current.y,
+            cursor.current.y
+          )
+        : 0;
 
       imgValues.displacementScale = lerp(
         imgValues.displacementScale,
-        targetDisp,
-        0.08
+        active
+          ? map(cursorTravelledDistance, 0, 200, 0, maxDisplacement)
+          : 0,
+        0.06
       );
 
       if (displacementMapRef.current) {
@@ -131,7 +176,7 @@ const DecayCard: React.FC<DecayCardProps> = ({
         });
       }
 
-      prevPointer.current = { ...pointer.current };
+      cachedCursor.current = { ...cursor.current };
       rafId = requestAnimationFrame(render);
     };
 
@@ -139,9 +184,10 @@ const DecayCard: React.FC<DecayCardProps> = ({
 
     return () => {
       cancelAnimationFrame(rafId);
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("mousemove", handleMouseMove);
       el.removeEventListener("pointerenter", onEnter);
       el.removeEventListener("pointerleave", onLeave);
-      el.removeEventListener("pointermove", onMove);
       gsap.set(el, { clearProps: "transform" });
     };
   }, [maxDisplacement, movementBound, hoverOnly]);
@@ -155,14 +201,15 @@ const DecayCard: React.FC<DecayCardProps> = ({
 
   return (
     <div
-      className={`relative touch-manipulation ${className}`}
+      className={`relative ${className}`}
       style={style}
-      ref={rootRef}
+      ref={svgRef}
     >
       <svg
         viewBox="-60 -75 720 900"
         preserveAspectRatio="xMidYMid slice"
-        className="relative block h-full w-full will-change-transform"
+        className="relative block h-full w-full"
+        style={{ willChange: "transform" }}
       >
         <filter id={filterId}>
           <feTurbulence

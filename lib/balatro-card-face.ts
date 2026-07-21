@@ -1,4 +1,4 @@
-/** Balatro joker card faces from local assets. */
+/** Balatro joker card faces from local assets — 5 unique arts. */
 
 export const JOKER_IMAGES = [
   "/jokers/joker-01.png",
@@ -8,13 +8,15 @@ export const JOKER_IMAGES = [
   "/jokers/joker-05.png",
 ] as const;
 
-/** Pick a joker art path by seed (challenge id, index, etc.). */
-export function balatroCardFace(seed: number): string {
-  const i = Math.abs(Math.trunc(seed)) % JOKER_IMAGES.length;
-  return JOKER_IMAGES[i];
+/**
+ * Unique joker per list index (0 → joker-01, 1 → joker-02, …).
+ * For 5 CTFs you get all 5 arts; extras cycle.
+ */
+export function jokerForChallenge(_id: number, index = 0): string {
+  return JOKER_IMAGES[index % JOKER_IMAGES.length];
 }
 
-/** Stable pick for a challenge id + list index. */
-export function jokerForChallenge(id: number, index = 0): string {
-  return balatroCardFace(id * 3 + index);
+/** All joker paths (e.g. loading fan). */
+export function allJokers(): readonly string[] {
+  return JOKER_IMAGES;
 }

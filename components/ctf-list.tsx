@@ -63,7 +63,7 @@ function challengeLinks(c: CtfChallenge): ChallengeLink[] {
   return links;
 }
 
-const MIN_LOAD_MS = 900;
+const MIN_LOAD_MS = 1600;
 
 export function CtfList() {
   const [challenges, setChallenges] = useState<CtfChallenge[]>([]);
@@ -123,7 +123,7 @@ export function CtfList() {
                 No login · shared flags
               </span>
             </div>
-            <h1 className="font-display text-4xl leading-[0.95] tracking-wide text-balatro-cream sm:text-6xl md:text-7xl">
+            <h1 className="font-display text-4xl leading-none tracking-wide text-balatro-cream sm:text-5xl md:text-6xl lg:text-7xl">
               LUG EXPO{" "}
               <span className="text-balatro-gold">CTF</span>
             </h1>
@@ -202,11 +202,12 @@ export function CtfList() {
                   height="auto"
                   className="aspect-[280/360] w-full max-w-[300px] lg:max-w-none"
                   image={face}
-                  seed={c.id * 7 + 3}
-                  maxDisplacement={80}
-                  movementBound={18}
+                  seed={i + 1}
+                  maxDisplacement={560}
+                  movementBound={58}
                   hoverOnly
-                  baseFrequency={0.012}
+                  baseFrequency={0.018}
+                  numOctaves={6}
                   textClassName="pointer-events-none absolute inset-0 flex flex-col justify-between p-3 sm:p-3.5 lg:p-2.5 xl:p-3"
                 >
                   <div className="flex items-start justify-between gap-1.5">

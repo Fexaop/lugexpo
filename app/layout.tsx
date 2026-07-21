@@ -1,13 +1,7 @@
 import type { Metadata } from "next";
-import { Bebas_Neue, Geist_Mono, Outfit } from "next/font/google";
+import { Geist_Mono, Outfit } from "next/font/google";
+import { CrtOverlay } from "@/components/crt-overlay";
 import "./globals.css";
-
-const display = Bebas_Neue({
-  weight: "400",
-  variable: "--font-display",
-  subsets: ["latin"],
-  display: "swap",
-});
 
 const body = Outfit({
   variable: "--font-body",
@@ -45,10 +39,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${display.variable} ${body.variable} ${geistMono.variable} dark h-full antialiased`}
+      className={`${body.variable} ${geistMono.variable} dark h-full`}
     >
-      <body className="flex min-h-full flex-col bg-[#05080a] text-foreground">
+      <body className="crt-grade flex min-h-full flex-col bg-[#05080a] text-foreground">
         {children}
+        <CrtOverlay intensity={0.9} />
       </body>
     </html>
   );
