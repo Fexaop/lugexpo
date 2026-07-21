@@ -127,7 +127,7 @@ export function CtfList() {
               LUG EXPO{" "}
               <span className="text-balatro-gold">CTF</span>
             </h1>
-            <p className="font-desc mt-3 max-w-xl sm:mt-4 sm:text-[0.95rem]">
+            <p className="mt-3 max-w-xl text-sm leading-relaxed text-muted-foreground sm:mt-4 sm:text-base">
               Draw a challenge, crack it, cash the flag. Every solve rotates the
               flag for the rest of the table — play fair, play fast.
             </p>
@@ -200,7 +200,7 @@ export function CtfList() {
                 <DecayCard
                   width="100%"
                   height="auto"
-                  className="pixel-shadow aspect-[280/360] w-full max-w-[300px] lg:max-w-none"
+                  className="aspect-[280/360] w-full max-w-[300px] lg:max-w-none"
                   image={face}
                   seed={i + 1}
                   maxDisplacement={560}
@@ -234,33 +234,35 @@ export function CtfList() {
                   </div>
                 </DecayCard>
 
-                <div className="balatro-panel relative z-20 mt-3 w-full p-2.5 lg:p-2 xl:p-2.5">
-                  <div className="mb-2 flex items-center justify-between gap-1 font-display text-[11px] tracking-wide text-muted-foreground lg:text-[10px] xl:text-[11px]">
+                <div className="relative z-20 mt-3 w-full rounded-xl border border-balatro-gold/30 bg-[#0a1213]/95 p-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.55)] backdrop-blur-md transition group-hover:border-balatro-gold/55 lg:p-2 xl:p-2.5">
+                  <div className="mb-2 flex items-center justify-between gap-1 text-[11px] text-muted-foreground lg:text-[10px] xl:text-[11px]">
                     <span className="min-w-0 truncate">
                       by{" "}
-                      <span className="text-balatro-cream">
+                      <span className="font-medium text-balatro-cream">
                         {c.author}
                       </span>
                     </span>
-                    <span className="shrink-0 text-balatro-gold">
-                      {c.solves} SOLVES
+                    <span className="shrink-0 font-mono text-balatro-gold">
+                      {c.solves} solves
                     </span>
                   </div>
 
+                  {/* Description under the card — always readable */}
                   {c.description ? (
-                    <p className="font-desc mb-2.5">
+                    <p className="mb-2.5 text-[11px] leading-relaxed text-balatro-cream/85 lg:text-[10px] xl:text-[11px]">
                       {c.description}
                     </p>
                   ) : null}
 
+                  {/* Backend links — open directly */}
                   <div className="mb-2.5 space-y-1.5 lg:mb-2">
                     {!c.running ? (
-                      <p className="font-display rounded-md border-2 border-black bg-[#2a2a32] px-2 py-1.5 text-[11px] text-zinc-300 shadow-[0_2px_0_#000]">
-                        NOT RUNNING
+                      <p className="rounded-md border border-white/10 bg-black/50 px-2 py-1.5 text-[10px] text-zinc-400">
+                        Not running
                       </p>
                     ) : links.length === 0 ? (
-                      <p className="font-display rounded-md border-2 border-black bg-[#2a2a32] px-2 py-1.5 text-[11px] text-zinc-300 shadow-[0_2px_0_#000]">
-                        NO LINKS
+                      <p className="rounded-md border border-white/10 bg-black/50 px-2 py-1.5 text-[10px] text-zinc-400">
+                        Running (no published links)
                       </p>
                     ) : (
                       links.map((link) => (
@@ -269,16 +271,11 @@ export function CtfList() {
                           href={link.href}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="balatro-link"
+                          className="flex items-start gap-1.5 rounded-md border border-balatro-blue/40 bg-black/50 px-2 py-1.5 font-mono text-[9px] leading-snug text-sky-300 transition hover:border-balatro-gold/50 hover:bg-balatro-gold/10 hover:text-balatro-gold xl:text-[10px]"
                         >
-                          <ExternalLink className="mt-0.5 size-3.5 shrink-0" />
-                          <span className="min-w-0">
-                            <span className="font-link block text-[11px] leading-none tracking-wider sm:text-xs">
-                              OPEN
-                            </span>
-                            <span className="mt-0.5 block break-all font-mono text-[10px] leading-snug text-sky-100/95 sm:text-[11px]">
-                              {link.label}
-                            </span>
+                          <ExternalLink className="mt-0.5 size-3 shrink-0" />
+                          <span className="break-all underline-offset-2 hover:underline">
+                            {link.label}
                           </span>
                         </a>
                       ))
@@ -288,7 +285,7 @@ export function CtfList() {
                   <SubmitFlagDialog
                     challenge={c}
                     onSuccess={() => load()}
-                    triggerClassName="w-full"
+                    triggerClassName="w-full text-xs lg:text-[11px] xl:text-xs"
                   />
                 </div>
               </article>

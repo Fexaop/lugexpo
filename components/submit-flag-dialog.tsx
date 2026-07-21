@@ -84,12 +84,12 @@ export function SubmitFlagDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="default" className={triggerClassName ?? "w-full"}>
+        <Button variant="chip" className={triggerClassName ?? "w-full"}>
           <Spade className="size-4" />
           Play hand
         </Button>
       </DialogTrigger>
-      <DialogContent className="border-[3px] border-black bg-[#12161c] sm:max-w-md shadow-[0_8px_0_#000,0_0_60px_rgba(61,139,253,0.2)]">
+      <DialogContent className="border-2 border-balatro-gold/40 bg-[#0e181a]/sm:max-w-md shadow-[0_0_60px_rgba(222,68,59,0.2)]">
         <DialogHeader>
           <p className="font-display text-xs tracking-[0.35em] text-balatro-gold">
             SUBMIT FLAG
@@ -97,7 +97,7 @@ export function SubmitFlagDialog({
           <DialogTitle className="font-display text-3xl tracking-wide text-balatro-cream">
             {challenge.name}
           </DialogTitle>
-          <DialogDescription className="font-desc text-muted-foreground">
+          <DialogDescription className="text-muted-foreground">
             Ante up your details and the flag. No login — one shared table.
           </DialogDescription>
         </DialogHeader>
@@ -174,7 +174,7 @@ export function SubmitFlagDialog({
           <DialogFooter>
             <Button
               type="submit"
-              variant="success"
+              variant="destructive"
               disabled={loading}
               className="w-full sm:w-auto"
             >
