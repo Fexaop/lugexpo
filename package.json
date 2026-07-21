@@ -31,11 +31,13 @@
     "typescript": "^5"
   },
   "pnpm": {
+    "neverBuiltDependencies": [
+      "sharp",
+      "unrs-resolver"
+    ],
     "ignoredBuiltDependencies": [
       "sharp",
       "unrs-resolver"
     ]
   }
 }
-
-
