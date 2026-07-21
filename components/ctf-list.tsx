@@ -8,9 +8,9 @@ import {
   type ReactNode,
 } from "react";
 import {
+  ExternalLink,
   Loader2,
   RefreshCw,
-  Server,
   Sparkles,
   Trophy,
   Users,
@@ -25,12 +25,42 @@ import DecayCard from "@/components/react-bits/decay-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-function connectionLine(c: CtfChallenge): string | null {
-  if (c.static_url) return c.static_url;
-  if (c.ports?.length) {
-    return c.ports.map((p) => `${c.host}:${p}`).join(" · ");
+type ChallengeLink = { href: string; label: string };
+
+/** Normalize backend URLs / host:port into browser-openable hrefs. */
+function toHref(raw: string): string {
+  const s = raw.trim();
+  if (!s) return s;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(s)) return s;
+  // host:port or bare host → http
+  return `http://${s}`;
+}
+
+function challengeLinks(c: CtfChallenge): ChallengeLink[] {
+  const links: ChallengeLink[] = [];
+  const seen = new Set<string>();
+
+  const push = (label: string, href: string) => {
+    if (!label || !href || seen.has(href)) return;
+    seen.add(href);
+    links.push({ label, href });
+  };
+
+  if (c.static_url) {
+    push(c.static_url, toHref(c.static_url));
   }
-  return null;
+  if (c.ports?.length && c.host) {
+    for (const p of c.ports) {
+      const label = `${c.host}:${p}`;
+      // host may already be a URL; avoid double scheme
+      const base = c.host.replace(/\/$/, "");
+      const href = /^[a-z][a-z0-9+.-]*:\/\//i.test(base)
+        ? `${base}:${p}`
+        : `http://${base}:${p}`;
+      push(label, href);
+    }
+  }
+  return links;
 }
 
 const MIN_LOAD_MS = 900;
@@ -157,10 +187,10 @@ export function CtfList() {
           </p>
         </div>
       ) : (
-        {/* 1 col phone · all 5 in one row from lg up */}
+        // 1 col phone · all 5 in one row from lg up
         <div className="grid grid-cols-1 justify-items-center gap-8 pb-12 lg:grid-cols-5 lg:items-start lg:gap-3 xl:gap-4">
           {challenges.map((c, i) => {
-            const conn = connectionLine(c);
+            const links = challengeLinks(c);
             const face = jokerForChallenge(c.id, i);
             return (
               <article
@@ -193,13 +223,9 @@ export function CtfList() {
                       {c.running ? "Live" : "Down"}
                     </Badge>
                   </div>
-                  {/* Scrim so white joker cards stay readable */}
                   <div className="rounded-lg bg-gradient-to-t from-black/85 via-black/55 to-transparent px-0.5 pb-0.5 pt-6 lg:pt-5">
                     <p className="font-display text-2xl leading-none tracking-wide text-balatro-cream drop-shadow-[0_2px_6px_rgba(0,0,0,0.9)] lg:text-xl xl:text-2xl">
                       {c.name}
-                    </p>
-                    <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-white/85 drop-shadow lg:line-clamp-2 lg:text-[10px] xl:text-[11px]">
-                      {c.description}
                     </p>
                     <p className="mt-1.5 font-mono text-[10px] font-bold tracking-wider text-balatro-gold lg:text-[9px] xl:text-[10px]">
                       {c.points} PTS
@@ -219,14 +245,42 @@ export function CtfList() {
                       {c.solves} solves
                     </span>
                   </div>
-                  <div className="mb-2.5 flex items-start gap-1.5 rounded-md border border-white/10 bg-black/50 px-2 py-1.5 font-mono text-[9px] leading-snug text-zinc-300 lg:mb-2 xl:text-[10px]">
-                    <Server className="mt-0.5 size-3 shrink-0 text-balatro-blue" />
-                    <span className="break-all">
-                      {c.running
-                        ? conn || "Running (no published ports)"
-                        : "Not running"}
-                    </span>
+
+                  {/* Description under the card — always readable */}
+                  {c.description ? (
+                    <p className="mb-2.5 text-[11px] leading-relaxed text-balatro-cream/85 lg:text-[10px] xl:text-[11px]">
+                      {c.description}
+                    </p>
+                  ) : null}
+
+                  {/* Backend links — open directly */}
+                  <div className="mb-2.5 space-y-1.5 lg:mb-2">
+                    {!c.running ? (
+                      <p className="rounded-md border border-white/10 bg-black/50 px-2 py-1.5 text-[10px] text-zinc-400">
+                        Not running
+                      </p>
+                    ) : links.length === 0 ? (
+                      <p className="rounded-md border border-white/10 bg-black/50 px-2 py-1.5 text-[10px] text-zinc-400">
+                        Running (no published links)
+                      </p>
+                    ) : (
+                      links.map((link) => (
+                        <a
+                          key={link.href}
+                          href={link.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-start gap-1.5 rounded-md border border-balatro-blue/40 bg-black/50 px-2 py-1.5 font-mono text-[9px] leading-snug text-sky-300 transition hover:border-balatro-gold/50 hover:bg-balatro-gold/10 hover:text-balatro-gold xl:text-[10px]"
+                        >
+                          <ExternalLink className="mt-0.5 size-3 shrink-0" />
+                          <span className="break-all underline-offset-2 hover:underline">
+                            {link.label}
+                          </span>
+                        </a>
+                      ))
+                    )}
                   </div>
+
                   <SubmitFlagDialog
                     challenge={c}
                     onSuccess={() => load()}
