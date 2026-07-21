@@ -1,27 +1,34 @@
 @import "tailwindcss";
 
-/* Pure black shadcn theme */
+/* Balatro / poker-table theme */
 :root {
-  --background: #000000;
-  --foreground: #fafafa;
-  --card: #000000;
-  --card-foreground: #fafafa;
-  --popover: #000000;
-  --popover-foreground: #fafafa;
-  --primary: #fafafa;
-  --primary-foreground: #000000;
-  --secondary: #171717;
-  --secondary-foreground: #fafafa;
-  --muted: #171717;
-  --muted-foreground: #a1a1aa;
-  --accent: #171717;
-  --accent-foreground: #fafafa;
-  --destructive: #7f1d1d;
-  --destructive-foreground: #fafafa;
-  --border: #27272a;
-  --input: #27272a;
-  --ring: #d4d4d8;
-  --radius: 0.5rem;
+  --background: #0a1213;
+  --foreground: #f5e6c8;
+  --card: #121c1e;
+  --card-foreground: #f5e6c8;
+  --popover: #0e181a;
+  --popover-foreground: #f5e6c8;
+  --primary: #f5c542;
+  --primary-foreground: #1a1000;
+  --secondary: #1a2a2e;
+  --secondary-foreground: #f5e6c8;
+  --muted: #162325;
+  --muted-foreground: #a89b7c;
+  --accent: #de443b;
+  --accent-foreground: #fff5f0;
+  --destructive: #de443b;
+  --destructive-foreground: #fff5f0;
+  --border: rgba(245, 197, 66, 0.35);
+  --input: rgba(245, 230, 200, 0.12);
+  --ring: #f5c542;
+  --radius: 0.75rem;
+
+  --balatro-red: #de443b;
+  --balatro-blue: #006bb4;
+  --balatro-dark: #162325;
+  --balatro-gold: #f5c542;
+  --balatro-cream: #f5e6c8;
+  --balatro-felt: #0a1a12;
 }
 
 @theme inline {
@@ -44,20 +51,79 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-balatro-red: var(--balatro-red);
+  --color-balatro-blue: var(--balatro-blue);
+  --color-balatro-dark: var(--balatro-dark);
+  --color-balatro-gold: var(--balatro-gold);
+  --color-balatro-cream: var(--balatro-cream);
+  --color-balatro-felt: var(--balatro-felt);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-body);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
 }
 
 * {
   border-color: var(--border);
 }
 
+html {
+  color-scheme: dark;
+}
+
 body {
-  background: #000000;
+  background: #05080a;
   color: var(--foreground);
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-body), system-ui, sans-serif;
+}
+
+/* Gold chip button hover shimmer */
+@keyframes chip-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(245, 197, 66, 0.4),
+      0 4px 20px rgba(222, 68, 59, 0.25);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(245, 197, 66, 0.7),
+      0 6px 28px rgba(245, 197, 66, 0.35);
+  }
+}
+
+.chip-glow {
+  animation: chip-pulse 2.8s ease-in-out infinite;
+}
+
+/* Felt panel behind content */
+.felt-panel {
+  background: linear-gradient(
+    165deg,
+    rgba(10, 22, 18, 0.72) 0%,
+    rgba(8, 14, 16, 0.82) 100%
+  );
+  border: 1px solid rgba(245, 197, 66, 0.22);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4) inset,
+    0 20px 50px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(10px);
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0a1213;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(245, 197, 66, 0.35);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 197, 66, 0.55);
 }

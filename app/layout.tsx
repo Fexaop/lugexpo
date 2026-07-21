@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bebas_Neue, Geist_Mono, Outfit } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const display = Bebas_Neue({
+  weight: "400",
+  variable: "--font-display",
+  subsets: ["latin"],
+});
+
+const body = Outfit({
+  variable: "--font-body",
   subsets: ["latin"],
 });
 
@@ -13,8 +19,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LUG Expo CTF",
-  description: "Open CTF — no login, all challenges live",
+  title: "LUG Expo CTF — The Table",
+  description: "Open CTF — no login, all challenges live. Play your hand.",
 };
 
 export default function RootLayout({
@@ -25,9 +31,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} dark h-full antialiased`}
+      className={`${display.variable} ${body.variable} ${geistMono.variable} dark h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-black text-foreground">
+      <body className="flex min-h-full flex-col bg-[#05080a] text-foreground">
         {children}
       </body>
     </html>
