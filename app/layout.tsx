@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Outfit } from "next/font/google";
 import { CrtOverlay } from "@/components/crt-overlay";
 import "./globals.css";
@@ -29,6 +29,15 @@ export const metadata: Metadata = {
     ],
     apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
   },
+};
+
+/** iOS: resize layout when the virtual keyboard opens (not only the visual viewport). */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  // Critical for forms above the keyboard on mobile browsers
+  interactiveWidget: "resizes-content",
 };
 
 export default function RootLayout({
