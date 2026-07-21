@@ -106,7 +106,7 @@ export function SubmitFlagDialog({
           Native <input> — not wrapped in anything that steals touch/focus.
         */}
         <div className="flex h-full min-h-0 flex-col">
-          <DialogHeader className="shrink-0 border-b border-balatro-gold/15 px-4 pb-3 pt-4 pr-14 text-left">
+          <DialogHeader className="shrink-0 border-b border-balatro-gold/15 px-4 pb-2.5 pt-3.5 pr-14 text-left sm:pt-4">
             <p className="font-display text-[11px] tracking-[0.35em] text-balatro-gold">
               SUBMIT FLAG
             </p>
@@ -121,11 +121,10 @@ export function SubmitFlagDialog({
           <form
             onSubmit={onSubmit}
             className="flex min-h-0 flex-1 flex-col"
-            // Stop touch from being swallowed by parent drag/scroll hacks
-            onTouchStart={(e) => e.stopPropagation()}
           >
             <div
-              className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4"
+              data-sheet-scroll
+              className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-3 pb-6"
               style={{ WebkitOverflowScrolling: "touch" }}
             >
               <div className="space-y-1.5">

@@ -23,54 +23,82 @@ const DialogOverlay = React.forwardRef<
 ));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
 
+/** Scroll the focused field into the sheet’s scroll area (above keyboard). */
+function scrollFocusedFieldIntoView(sheet: HTMLElement) {
+  const active = document.activeElement;
+  if (!(active instanceof HTMLElement)) return;
+  if (active.tagName !== "INPUT" && active.tagName !== "TEXTAREA") return;
+  if (!sheet.contains(active)) return;
+
+  const scroller =
+    (sheet.querySelector("[data-sheet-scroll]") as HTMLElement | null) ?? sheet;
+
+  // Prefer scrolling the inner scroller so the sticky header/footer stay put
+  const scrollerRect = scroller.getBoundingClientRect();
+  const fieldRect = active.getBoundingClientRect();
+  const pad = 24;
+  let delta = 0;
+
+  if (fieldRect.top < scrollerRect.top + pad) {
+    delta = fieldRect.top - scrollerRect.top - pad;
+  } else if (fieldRect.bottom > scrollerRect.bottom - pad) {
+    delta = fieldRect.bottom - scrollerRect.bottom + pad;
+  }
+
+  if (delta !== 0) {
+    scroller.scrollBy({ top: delta, behavior: "smooth" });
+  }
+}
+
 /**
- * Pin an element to the visual viewport (the area above the iOS keyboard).
- * When the keyboard opens, height shrinks — form stays usable and inputs
- * remain focusable so the keyboard can open.
+ * Dock the sheet to the bottom of the visual viewport (sits on top of the
+ * keyboard). Max-height tracks the visible area so content can scroll.
  */
-function usePinToVisualViewport(el: HTMLElement | null) {
+function useKeyboardAwareSheet(el: HTMLElement | null) {
   React.useLayoutEffect(() => {
     if (!el) return;
 
-    // Desktop: clear any mobile pin styles, let CSS handle centering
     const mq = window.matchMedia("(min-width: 640px)");
     const vv = window.visualViewport;
 
     const clearDesktop = () => {
       el.style.top = "";
       el.style.left = "";
+      el.style.right = "";
+      el.style.bottom = "";
       el.style.width = "";
       el.style.height = "";
       el.style.maxHeight = "";
-      el.style.bottom = "";
-      el.style.right = "";
       el.style.transform = "";
       el.style.borderRadius = "";
     };
 
     const pinMobile = () => {
-      if (!vv) {
-        el.style.top = "0px";
-        el.style.left = "0px";
-        el.style.width = "100%";
-        el.style.height = "100%";
-        el.style.maxHeight = "100%";
-        el.style.bottom = "auto";
-        el.style.right = "auto";
-        el.style.transform = "none";
-        el.style.borderRadius = "0";
-        return;
-      }
-      // Exact visual viewport box — never under the keyboard
-      el.style.top = `${vv.offsetTop}px`;
-      el.style.left = `${vv.offsetLeft}px`;
-      el.style.width = `${vv.width}px`;
-      el.style.height = `${vv.height}px`;
-      el.style.maxHeight = `${vv.height}px`;
-      el.style.bottom = "auto";
+      // Gap between visual viewport bottom and layout viewport bottom = keyboard
+      const offsetTop = vv?.offsetTop ?? 0;
+      const vvHeight = vv?.height ?? window.innerHeight;
+      const vvWidth = vv?.width ?? window.innerWidth;
+      const vvLeft = vv?.offsetLeft ?? 0;
+      const keyboardGap = Math.max(
+        0,
+        window.innerHeight - offsetTop - vvHeight
+      );
+
+      // Dock to keyboard; height = visible area so flex scroll works
+      const maxH = Math.max(240, Math.floor(vvHeight * 0.96));
+
+      el.style.top = "auto";
+      el.style.bottom = `${keyboardGap}px`;
+      el.style.left = `${vvLeft}px`;
       el.style.right = "auto";
+      el.style.width = `${vvWidth}px`;
+      el.style.height = `${maxH}px`;
+      el.style.maxHeight = `${maxH}px`;
       el.style.transform = "none";
-      el.style.borderRadius = "0";
+      el.style.borderRadius = "16px 16px 0 0";
+
+      // After layout settles, keep the focused field in view
+      requestAnimationFrame(() => scrollFocusedFieldIntoView(el));
     };
 
     const apply = () => {
@@ -79,18 +107,48 @@ function usePinToVisualViewport(el: HTMLElement | null) {
     };
 
     apply();
-    vv?.addEventListener("resize", apply);
-    vv?.addEventListener("scroll", apply);
+
+    // Debounce slightly on vv resize (keyboard animating)
+    let raf = 0;
+    const onVvChange = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(apply);
+    };
+
+    vv?.addEventListener("resize", onVvChange);
+    vv?.addEventListener("scroll", onVvChange);
     window.addEventListener("resize", apply);
     mq.addEventListener("change", apply);
 
     return () => {
-      vv?.removeEventListener("resize", apply);
-      vv?.removeEventListener("scroll", apply);
+      cancelAnimationFrame(raf);
+      vv?.removeEventListener("resize", onVvChange);
+      vv?.removeEventListener("scroll", onVvChange);
       window.removeEventListener("resize", apply);
       mq.removeEventListener("change", apply);
       clearDesktop();
     };
+  }, [el]);
+}
+
+function useAutoScrollOnFocus(el: HTMLElement | null) {
+  React.useEffect(() => {
+    if (!el) return;
+
+    const onFocusIn = (e: FocusEvent) => {
+      const t = e.target;
+      if (!(t instanceof HTMLElement)) return;
+      if (t.tagName !== "INPUT" && t.tagName !== "TEXTAREA") return;
+
+      // Wait for keyboard + visualViewport to finish moving
+      const run = () => scrollFocusedFieldIntoView(el);
+      window.setTimeout(run, 50);
+      window.setTimeout(run, 200);
+      window.setTimeout(run, 400);
+    };
+
+    el.addEventListener("focusin", onFocusIn);
+    return () => el.removeEventListener("focusin", onFocusIn);
   }, [el]);
 }
 
@@ -109,7 +167,8 @@ const DialogContent = React.forwardRef<
     [ref]
   );
 
-  usePinToVisualViewport(node);
+  useKeyboardAwareSheet(node);
+  useAutoScrollOnFocus(node);
 
   return (
     <DialogPortal>
@@ -117,26 +176,21 @@ const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={setRefs}
         className={cn(
-          // Mobile: full visual-viewport panel (inline styles set top/height)
-          "fixed z-[200] flex w-full flex-col gap-0 border border-border bg-background p-0 shadow-lg outline-none",
-          "left-0 top-0 h-full max-h-full overflow-hidden",
-          // Desktop: classic centered modal
-          "sm:left-[50%] sm:top-[50%] sm:h-auto sm:max-h-[min(90vh,720px)] sm:w-full sm:max-w-lg",
-          "sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:border sm:p-6",
+          // Mobile: bottom sheet (inline styles dock above keyboard)
+          "fixed z-[200] flex w-full flex-col gap-0 overflow-hidden border border-border bg-background p-0 shadow-lg outline-none",
+          "left-0 bottom-0 top-auto max-h-[92dvh] rounded-t-2xl",
+          // Desktop: centered modal
+          "sm:bottom-auto sm:left-[50%] sm:top-[50%] sm:h-auto sm:max-h-[min(90vh,720px)] sm:w-full sm:max-w-lg",
+          "sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:border",
           className
         )}
-        // Don't auto-focus an <input> (that forces the keyboard + jumps the sheet).
-        // Focus the panel itself so the trap is happy; user taps a field to type.
         onOpenAutoFocus={(e) => {
           e.preventDefault();
           const panel = e.currentTarget as HTMLElement;
-          if (panel && typeof panel.focus === "function") {
-            panel.focus({ preventScroll: true });
-          }
+          panel?.focus?.({ preventScroll: true });
           onOpenAutoFocus?.(e);
         }}
         onCloseAutoFocus={(e) => {
-          // Prevent scroll-jump / focus fighting on iOS when closing
           e.preventDefault();
           onCloseAutoFocus?.(e);
         }}
@@ -160,13 +214,7 @@ const DialogHeader = ({
   className,
   ...props
 }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={cn(
-      "flex flex-col space-y-1.5 text-left",
-      className
-    )}
-    {...props}
-  />
+  <div className={cn("flex flex-col space-y-1.5 text-left", className)} {...props} />
 );
 DialogHeader.displayName = "DialogHeader";
 
