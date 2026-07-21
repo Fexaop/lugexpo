@@ -423,7 +423,7 @@ body {
   outline-offset: 2px;
 }
 
-/* Info panel under each card */
+/* Info panel under each card — frosted glass over the page bg */
 .card-info-panel {
   position: relative;
   z-index: 20;
@@ -432,12 +432,14 @@ body {
   padding: 0.75rem;
   border-radius: 0.75rem;
   border: 1px solid rgba(245, 197, 66, 0.35);
-  /* Solid — no transparency / backdrop-filter on mobile */
-  background-color: #0a1213;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55);
+  background: rgba(10, 18, 19, 0.42);
+  backdrop-filter: blur(16px) saturate(1.15);
+  -webkit-backdrop-filter: blur(16px) saturate(1.15);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(245, 230, 200, 0.06);
   transform: translate3d(0, 0, 0);
   -webkit-transform: translate3d(0, 0, 0);
-  isolation: isolate;
 }
 
 @media (prefers-reduced-motion: reduce) {
