@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Balatro pixel font (m6x11plus — same family used by Balatro) */
+/* Balatro pixel font (m6x11plus) */
 @font-face {
   font-family: "m6x11plus";
   src:
@@ -11,7 +11,6 @@
   font-display: swap;
 }
 
-/* Balatro / poker-table theme */
 :root {
   --background: #0a1213;
   --foreground: #f5e6c8;
@@ -19,27 +18,31 @@
   --card-foreground: #f5e6c8;
   --popover: #0e181a;
   --popover-foreground: #f5e6c8;
-  --primary: #f5c542;
-  --primary-foreground: #1a1000;
-  --secondary: #1a2a2e;
-  --secondary-foreground: #f5e6c8;
+  --primary: #3d8bfd;
+  --primary-foreground: #ffffff;
+  --secondary: #c47a1a;
+  --secondary-foreground: #ffffff;
   --muted: #162325;
-  --muted-foreground: #a89b7c;
-  --accent: #de443b;
+  --muted-foreground: #b8a88c;
+  --accent: #e23d3d;
   --accent-foreground: #fff5f0;
-  --destructive: #de443b;
+  --destructive: #e23d3d;
   --destructive-foreground: #fff5f0;
   --border: rgba(245, 197, 66, 0.35);
   --input: rgba(245, 230, 200, 0.12);
   --ring: #f5c542;
   --radius: 0.75rem;
 
-  --balatro-red: #de443b;
-  --balatro-blue: #006bb4;
+  --balatro-red: #e23d3d;
+  --balatro-blue: #3d8bfd;
   --balatro-dark: #162325;
   --balatro-gold: #f5c542;
   --balatro-cream: #f5e6c8;
   --balatro-felt: #0a1a12;
+
+  /* CRT options (Balatro-style) */
+  --crt-a: 1;
+  --pixel-smooth: 1; /* Pixel Art Smoothing on */
 }
 
 @theme inline {
@@ -74,7 +77,7 @@
   --radius-xl: calc(var(--radius) + 4px);
   --font-sans: var(--font-body);
   --font-mono: var(--font-geist-mono);
-  --font-display: "m6x11plus", var(--font-display), monospace;
+  --font-display: "m6x11plus", monospace;
   --font-pixel: "m6x11plus", monospace;
 }
 
@@ -84,87 +87,220 @@
 
 html {
   color-scheme: dark;
+  background: #020406;
 }
 
 body {
-  background: #05080a;
+  background: #020406;
   color: var(--foreground);
   font-family: var(--font-body), system-ui, sans-serif;
 }
 
-/* Pixel headers — Balatro m6x11plus */
+/* —— Pixel Art Smoothing (ON = smooth upscale like Balatro setting) —— */
+.pixel-smooth img,
+.pixel-smooth canvas,
+.pixel-smooth svg image {
+  image-rendering: auto;
+  image-rendering: smooth;
+}
+
+/* Hard pixel mode fallback class */
+.pixel-crisp img,
+.pixel-crisp canvas {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+/* Card / joker drop shadows (Balatro Shadows) */
+.pixel-shadow {
+  filter: drop-shadow(0 8px 0 rgba(0, 0, 0, 0.55))
+    drop-shadow(0 14px 18px rgba(0, 0, 0, 0.45));
+}
+
+/* Pixel headers */
 .font-display,
 .font-pixel {
   font-family: "m6x11plus", monospace;
   font-weight: 400;
   letter-spacing: 0.08em;
-  /* Crisp pixel edges */
   -webkit-font-smoothing: none;
   -moz-osx-font-smoothing: unset;
   font-smooth: never;
   text-rendering: geometricPrecision;
-  image-rendering: pixelated;
 }
 
 .font-body {
   font-family: var(--font-body), Outfit, system-ui, sans-serif;
 }
 
-/* Slight CRT phosphor glow on pixel titles */
-.font-display {
-  text-shadow:
-    0 0 1px rgba(245, 230, 200, 0.35),
-    0 0 12px rgba(245, 197, 66, 0.18),
-    1px 0 0 rgba(222, 68, 59, 0.22),
-    -1px 0 0 rgba(0, 107, 180, 0.22);
+/* Readable body copy on panels */
+.font-desc {
+  font-family: var(--font-body), Outfit, system-ui, sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+  color: rgba(245, 230, 200, 0.92);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
 }
 
-/* ========== CRT SHADER OVERLAY ========== */
+/* Link chips — pixel label + readable mono URL */
+.font-link {
+  font-family: "m6x11plus", monospace;
+  letter-spacing: 0.04em;
+  -webkit-font-smoothing: none;
+  font-smooth: never;
+}
+
+.font-display {
+  text-shadow:
+    0 0 1px rgba(245, 230, 200, 0.4),
+    0 0 14px rgba(61, 139, 253, 0.2),
+    1px 0 0 rgba(226, 61, 61, 0.25),
+    -1px 0 0 rgba(61, 139, 253, 0.25);
+}
+
+/* ========== CRT: bent edges + bloom + scan ========== */
+
+/* Screen shell — bends inward at edges like a CRT tube */
+.crt-shell {
+  position: relative;
+  min-height: 100dvh;
+  margin: 0 auto;
+  /* Edge bend: content sits inside a curved “glass” */
+  border-radius: clamp(12px, 2.2vw, 28px);
+  overflow: clip;
+  transform: perspective(900px) scale(0.985);
+  transform-origin: center center;
+  box-shadow:
+    0 0 0 2px #1c1c22,
+    0 0 0 5px #0a0a0c,
+    0 0 0 7px #2a2a32,
+    0 25px 80px rgba(0, 0, 0, 0.85),
+    inset 0 0 60px rgba(0, 0, 0, 0.35);
+}
+
+/* Extra radial pinch so corners feel warped inward */
+.crt-shell::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 80px rgba(0, 0, 0, 0.55),
+    inset 0 0 140px rgba(0, 0, 0, 0.35);
+  background: radial-gradient(
+    ellipse 88% 82% at 50% 50%,
+    transparent 58%,
+    rgba(0, 0, 0, 0.28) 100%
+  );
+}
+
+.crt-bezel {
+  /* Outer tube darkness that thickens at edges */
+  background:
+    radial-gradient(
+      ellipse 72% 68% at 50% 48%,
+      transparent 52%,
+      rgba(0, 0, 0, calc(0.35 * var(--crt-a, 1))) 78%,
+      rgba(0, 0, 0, calc(0.88 * var(--crt-a, 1))) 100%
+    );
+}
+
+/* Stronger corner bend / barrel darkening */
+.crt-barrel-edge {
+  background:
+    radial-gradient(
+      ellipse 100% 100% at 0% 0%,
+      rgba(0, 0, 0, calc(0.75 * var(--crt-a, 1))) 0%,
+      transparent 42%
+    ),
+    radial-gradient(
+      ellipse 100% 100% at 100% 0%,
+      rgba(0, 0, 0, calc(0.75 * var(--crt-a, 1))) 0%,
+      transparent 42%
+    ),
+    radial-gradient(
+      ellipse 100% 100% at 0% 100%,
+      rgba(0, 0, 0, calc(0.75 * var(--crt-a, 1))) 0%,
+      transparent 42%
+    ),
+    radial-gradient(
+      ellipse 100% 100% at 100% 100%,
+      rgba(0, 0, 0, calc(0.75 * var(--crt-a, 1))) 0%,
+      transparent 42%
+    );
+}
+
+/* CRT Bloom */
+.crt-bloom {
+  opacity: calc(0.55 * var(--crt-a, 1));
+  background:
+    radial-gradient(
+      ellipse 60% 45% at 50% 40%,
+      rgba(180, 210, 255, 0.14),
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 50% 40% at 50% 55%,
+      rgba(255, 220, 160, 0.08),
+      transparent 65%
+    );
+  mix-blend-mode: screen;
+  filter: blur(12px);
+  animation: crt-bloom-pulse 4.5s ease-in-out infinite;
+}
+
+@keyframes crt-bloom-pulse {
+  0%,
+  100% {
+    opacity: calc(0.4 * var(--crt-a, 1));
+  }
+  50% {
+    opacity: calc(0.7 * var(--crt-a, 1));
+  }
+}
+
 .crt-scanlines {
-  opacity: calc(0.22 * var(--crt-a, 1));
+  opacity: calc(0.28 * var(--crt-a, 1));
   background: repeating-linear-gradient(
     to bottom,
     rgba(0, 0, 0, 0) 0px,
     rgba(0, 0, 0, 0) 1px,
-    rgba(0, 0, 0, 0.45) 2px,
-    rgba(0, 0, 0, 0.45) 3px
+    rgba(0, 0, 0, 0.5) 2px,
+    rgba(0, 0, 0, 0.5) 3px
   );
   mix-blend-mode: multiply;
 }
 
 .crt-grille {
-  opacity: calc(0.08 * var(--crt-a, 1));
+  opacity: calc(0.1 * var(--crt-a, 1));
   background: repeating-linear-gradient(
     to right,
-    rgba(255, 0, 0, 0.08) 0px,
-    rgba(0, 255, 0, 0.05) 1px,
-    rgba(0, 80, 255, 0.08) 2px,
+    rgba(255, 40, 40, 0.09) 0px,
+    rgba(40, 255, 80, 0.05) 1px,
+    rgba(40, 80, 255, 0.09) 2px,
     transparent 3px
   );
   mix-blend-mode: screen;
 }
 
 .crt-vignette {
-  background:
-    radial-gradient(
-      ellipse 75% 70% at 50% 50%,
-      transparent 40%,
-      rgba(0, 0, 0, calc(0.55 * var(--crt-a, 1))) 100%
-    ),
-    radial-gradient(
-      ellipse 100% 100% at 50% 50%,
-      transparent 55%,
-      rgba(0, 0, 0, calc(0.75 * var(--crt-a, 1))) 100%
-    );
-  box-shadow: inset 0 0 80px rgba(0, 0, 0, calc(0.65 * var(--crt-a, 1)));
+  background: radial-gradient(
+    ellipse 70% 65% at 50% 50%,
+    transparent 35%,
+    rgba(0, 0, 0, calc(0.5 * var(--crt-a, 1))) 100%
+  );
+  box-shadow: inset 0 0 100px rgba(0, 0, 0, calc(0.7 * var(--crt-a, 1)));
 }
 
 .crt-roll {
-  top: -25%;
+  top: -30%;
   background: linear-gradient(
     to bottom,
     transparent,
-    rgba(245, 230, 200, calc(0.06 * var(--crt-a, 1))),
+    rgba(245, 230, 200, calc(0.07 * var(--crt-a, 1))),
     transparent
   );
   animation: crt-roll 7.5s linear infinite;
@@ -174,31 +310,31 @@ body {
 .crt-flicker {
   background: rgba(255, 248, 220, 0.03);
   animation: crt-flicker 0.12s steps(2) infinite;
-  opacity: calc(0.55 * var(--crt-a, 1));
+  opacity: calc(0.5 * var(--crt-a, 1));
   mix-blend-mode: overlay;
 }
 
 .crt-chroma {
-  opacity: calc(0.35 * var(--crt-a, 1));
-  background:
-    linear-gradient(
-      90deg,
-      rgba(222, 68, 59, 0.07),
-      transparent 8%,
-      transparent 92%,
-      rgba(0, 107, 180, 0.07)
-    );
+  opacity: calc(0.4 * var(--crt-a, 1));
+  background: linear-gradient(
+    90deg,
+    rgba(226, 61, 61, 0.09),
+    transparent 10%,
+    transparent 90%,
+    rgba(61, 139, 253, 0.09)
+  );
   mix-blend-mode: screen;
 }
 
 .crt-glass {
   background: linear-gradient(
     125deg,
-    rgba(255, 255, 255, calc(0.06 * var(--crt-a, 1))) 0%,
-    transparent 35%,
-    transparent 65%,
-    rgba(255, 255, 255, calc(0.03 * var(--crt-a, 1))) 100%
+    rgba(255, 255, 255, calc(0.07 * var(--crt-a, 1))) 0%,
+    transparent 38%,
+    transparent 62%,
+    rgba(255, 255, 255, calc(0.04 * var(--crt-a, 1))) 100%
   );
+  border-radius: clamp(12px, 2.2vw, 28px);
 }
 
 @keyframes crt-roll {
@@ -206,7 +342,7 @@ body {
     transform: translateY(0);
   }
   100% {
-    transform: translateY(140vh);
+    transform: translateY(145vh);
   }
 }
 
@@ -215,37 +351,89 @@ body {
     opacity: 0.04;
   }
   50% {
-    opacity: 0.09;
+    opacity: 0.1;
   }
   100% {
     opacity: 0.05;
   }
 }
 
-/* Mild CRT color grade on the whole page */
 .crt-grade {
-  filter: contrast(1.06) brightness(0.98) saturate(1.08);
+  filter: contrast(1.08) brightness(0.97) saturate(1.12);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .crt-roll,
-  .crt-flicker {
+  .crt-flicker,
+  .crt-bloom {
     animation: none;
   }
 }
 
-/* Gold chip button hover shimmer */
+/* Felt panel */
+.felt-panel {
+  background: linear-gradient(
+    165deg,
+    rgba(10, 22, 18, 0.78) 0%,
+    rgba(8, 14, 16, 0.88) 100%
+  );
+  border: 3px solid #0a0a0a;
+  box-shadow:
+    0 0 0 1px rgba(245, 197, 66, 0.25),
+    0 8px 0 rgba(0, 0, 0, 0.45),
+    0 20px 50px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
+}
+
+/* Card action panel */
+.balatro-panel {
+  border: 3px solid #0a0a0a;
+  border-radius: 0.85rem;
+  background: linear-gradient(180deg, #161c22 0%, #0c1014 100%);
+  box-shadow:
+    0 5px 0 #050505,
+    0 10px 24px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+/* Link row — Balatro-ish chip */
+.balatro-link {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  border: 2px solid #0a0a0a;
+  border-radius: 0.55rem;
+  background: linear-gradient(180deg, #2a5fbf 0%, #1e4a9a 100%);
+  color: #fff;
+  padding: 0.45rem 0.55rem;
+  box-shadow: 0 3px 0 #0a0a0a;
+  transition:
+    filter 0.1s,
+    transform 0.1s;
+  text-decoration: none;
+}
+.balatro-link:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+  color: #fff;
+}
+.balatro-link:active {
+  transform: translateY(2px);
+  box-shadow: 0 1px 0 #0a0a0a;
+}
+
 @keyframes chip-pulse {
   0%,
   100% {
     box-shadow:
-      0 0 0 1px rgba(245, 197, 66, 0.4),
-      0 4px 20px rgba(222, 68, 59, 0.25);
+      0 4px 0 #0a0a0a,
+      0 6px 0 rgba(0, 0, 0, 0.35);
   }
   50% {
     box-shadow:
-      0 0 0 1px rgba(245, 197, 66, 0.7),
-      0 6px 28px rgba(245, 197, 66, 0.35);
+      0 4px 0 #0a0a0a,
+      0 8px 12px rgba(61, 139, 253, 0.35);
   }
 }
 
@@ -253,7 +441,6 @@ body {
   animation: chip-pulse 2.8s ease-in-out infinite;
 }
 
-/* Loading: dealing cards + progress */
 @keyframes deal-card {
   from {
     translate: 0 0;
@@ -297,21 +484,6 @@ body {
   }
 }
 
-/* Felt panel behind content */
-.felt-panel {
-  background: linear-gradient(
-    165deg,
-    rgba(10, 22, 18, 0.72) 0%,
-    rgba(8, 14, 16, 0.82) 100%
-  );
-  border: 1px solid rgba(245, 197, 66, 0.22);
-  box-shadow:
-    0 0 0 1px rgba(0, 0, 0, 0.4) inset,
-    0 20px 50px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(10px);
-}
-
-/* Scrollbar */
 ::-webkit-scrollbar {
   width: 10px;
 }

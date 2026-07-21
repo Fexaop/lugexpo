@@ -41,9 +41,12 @@ export default function RootLayout({
       lang="en"
       className={`${body.variable} ${geistMono.variable} dark h-full`}
     >
-      <body className="crt-grade flex min-h-full flex-col bg-[#05080a] text-foreground">
-        {children}
-        <CrtOverlay intensity={0.9} />
+      <body className="crt-grade pixel-smooth flex min-h-full flex-col bg-[#020406] text-foreground">
+        {/* CRT tube shell — edge bend + bezel */}
+        <div className="crt-shell flex min-h-full flex-1 flex-col">
+          {children}
+        </div>
+        <CrtOverlay intensity={1} bloom />
       </body>
     </html>
   );

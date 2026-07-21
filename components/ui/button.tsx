@@ -4,29 +4,58 @@ import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
 
+/**
+ * Balatro title-screen style buttons:
+ * solid fill, thick black border, pixel font, hard drop shadow.
+ */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold tracking-wide transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  [
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap",
+    "font-display tracking-[0.12em] uppercase",
+    "border-[3px] border-black",
+    "rounded-xl",
+    "transition-[transform,filter,box-shadow] duration-100",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-balatro-gold focus-visible:ring-offset-2 focus-visible:ring-offset-black",
+    "disabled:pointer-events-none disabled:opacity-45",
+    "[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+    /* hard pixel shadow like Balatro UI */
+    "shadow-[0_4px_0_#0a0a0a,0_6px_0_rgba(0,0,0,0.35)]",
+    "hover:brightness-110 hover:-translate-y-0.5",
+    "active:translate-y-1 active:shadow-[0_1px_0_#0a0a0a] active:brightness-95",
+  ].join(" "),
   {
     variants: {
       variant: {
+        /* PLAY — blue */
         default:
-          "bg-primary text-primary-foreground shadow-[0_4px_0_#a67c12] hover:brightness-110 active:translate-y-0.5 active:shadow-none",
-        destructive:
-          "bg-balatro-red text-accent-foreground shadow-[0_4px_0_#8b1e18] hover:brightness-110 active:translate-y-0.5 active:shadow-none",
-        outline:
-          "border-2 border-balatro-gold/50 bg-black/40 text-balatro-cream shadow-sm hover:border-balatro-gold hover:bg-balatro-gold/10",
+          "bg-[#3d8bfd] text-white [text-shadow:2px_2px_0_#0a1a40]",
+        /* OPTIONS — amber/brown */
         secondary:
-          "bg-secondary text-secondary-foreground border border-white/10 shadow-sm hover:bg-secondary/80",
-        ghost: "hover:bg-white/5 hover:text-balatro-gold",
-        link: "text-balatro-gold underline-offset-4 hover:underline",
+          "bg-[#c47a1a] text-white [text-shadow:2px_2px_0_#3a2200]",
+        /* QUIT / destructive — red */
+        destructive:
+          "bg-[#e23d3d] text-white [text-shadow:2px_2px_0_#4a0000]",
+        /* COLLECTION — green */
+        success:
+          "bg-[#2f9e6b] text-white [text-shadow:2px_2px_0_#0a2e1c]",
+        /* MODS — purple/blue */
+        mods:
+          "bg-[#5b6fd4] text-white [text-shadow:2px_2px_0_#1a1a40]",
+        /* gold chip / play hand */
         chip:
-          "chip-glow border-2 border-balatro-gold bg-gradient-to-b from-[#ffe08a] to-[#f5c542] text-[#1a1000] shadow-[0_4px_0_#a67c12] hover:brightness-105 active:translate-y-0.5 active:shadow-none",
+          "bg-[#3d8bfd] text-white [text-shadow:2px_2px_0_#0a1a40]",
+        outline:
+          "border-[3px] border-black bg-[#2a2a32] text-balatro-cream [text-shadow:2px_2px_0_#000] hover:bg-[#3a3a44]",
+        ghost:
+          "border-transparent bg-transparent shadow-none text-balatro-cream hover:bg-white/10 hover:shadow-none active:shadow-none",
+        link:
+          "border-transparent bg-transparent shadow-none text-sky-300 underline-offset-4 hover:underline hover:shadow-none active:shadow-none",
       },
       size: {
-        default: "h-10 px-5 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
-        lg: "h-12 rounded-xl px-8 text-base",
-        icon: "h-10 w-10",
+        default: "h-11 min-h-11 px-5 text-base sm:text-lg",
+        sm: "h-9 rounded-lg px-3 text-sm",
+        lg: "h-14 rounded-2xl px-8 text-xl sm:text-2xl",
+        icon: "h-11 w-11",
       },
     },
     defaultVariants: {
