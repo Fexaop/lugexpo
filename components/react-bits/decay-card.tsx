@@ -26,7 +26,8 @@ interface DecayCardProps {
  * React Bits — Decay Card
  * https://reactbits.dev/components/decay-card
  *
- * Full SVG turbulence + displacement + gsap tilt, intensity tuned up.
+ * Outer frame stays fixed (border + layout box). Transform + displacement
+ * apply only to the inner media layer so motion stays clipped inside the card.
  */
 const DecayCard: React.FC<DecayCardProps> = ({
   width = 300,
@@ -36,14 +37,15 @@ const DecayCard: React.FC<DecayCardProps> = ({
   numOctaves = 5,
   seed = 4,
   maxDisplacement = 520,
-  movementBound = 55,
+  movementBound = 28,
   hoverOnly = true,
   className = "",
   textClassName = "",
   children,
 }) => {
   const filterId = useId().replace(/:/g, "");
-  const svgRef = useRef<HTMLDivElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const mediaRef = useRef<HTMLDivElement>(null);
   const displacementMapRef = useRef<SVGFEDisplacementMapElement>(null);
   const activeRef = useRef(!hoverOnly);
 
@@ -52,8 +54,9 @@ const DecayCard: React.FC<DecayCardProps> = ({
   const winsize = useRef({ width: 0, height: 0 });
 
   useEffect(() => {
-    const el = svgRef.current;
-    if (!el) return;
+    const frame = frameRef.current;
+    const media = mediaRef.current;
+    if (!frame || !media) return;
 
     cursor.current = {
       x: window.innerWidth / 2,
@@ -79,23 +82,46 @@ const DecayCard: React.FC<DecayCardProps> = ({
       };
     };
 
-    // Stock React Bits: window mousemove drives the effect
     const handleMouseMove = (ev: MouseEvent) => {
       cursor.current = { x: ev.clientX, y: ev.clientY };
     };
 
-    const onEnter = () => {
+    const handlePointerMove = (ev: PointerEvent) => {
+      cursor.current = { x: ev.clientX, y: ev.clientY };
+    };
+
+    const release = () => {
+      if (!hoverOnly) return;
+      activeRef.current = false;
+      // Snap motion back so the card never stays shifted over UI below
+      cursor.current = {
+        x: window.innerWidth / 2,
+        y: window.innerHeight / 2,
+      };
+    };
+
+    const onEnter = (ev: PointerEvent) => {
       activeRef.current = true;
+      cursor.current = { x: ev.clientX, y: ev.clientY };
     };
     const onLeave = () => {
-      if (hoverOnly) activeRef.current = false;
+      release();
+    };
+    // Touch: release on lift so the frame never "sticks" active over the CTA
+    const onUp = (ev: PointerEvent) => {
+      if (ev.pointerType === "touch" || ev.pointerType === "pen") {
+        release();
+      }
     };
 
     window.addEventListener("resize", handleResize);
     window.addEventListener("mousemove", handleMouseMove);
     if (hoverOnly) {
-      el.addEventListener("pointerenter", onEnter);
-      el.addEventListener("pointerleave", onLeave);
+      frame.addEventListener("pointerenter", onEnter);
+      frame.addEventListener("pointerleave", onLeave);
+      frame.addEventListener("pointermove", handlePointerMove);
+      frame.addEventListener("pointerup", onUp);
+      frame.addEventListener("pointercancel", release);
     }
 
     const imgValues = {
@@ -110,44 +136,39 @@ const DecayCard: React.FC<DecayCardProps> = ({
       const w = winsize.current.width || 1;
       const h = winsize.current.height || 1;
 
-      // Original React Bits mapping (full intensity when active)
+      // Gentler travel so motion stays readable inside the clipped frame
       let targetX = active
         ? lerp(
             imgValues.imgTransforms.x,
-            map(cursor.current.x, 0, w, -120, 120),
+            map(cursor.current.x, 0, w, -movementBound * 1.4, movementBound * 1.4),
             0.1
           )
-        : lerp(imgValues.imgTransforms.x, 0, 0.12);
+        : lerp(imgValues.imgTransforms.x, 0, 0.16);
       let targetY = active
         ? lerp(
             imgValues.imgTransforms.y,
-            map(cursor.current.y, 0, h, -120, 120),
+            map(cursor.current.y, 0, h, -movementBound * 1.4, movementBound * 1.4),
             0.1
           )
-        : lerp(imgValues.imgTransforms.y, 0, 0.12);
+        : lerp(imgValues.imgTransforms.y, 0, 0.16);
       let targetRz = active
         ? lerp(
             imgValues.imgTransforms.rz,
-            map(cursor.current.x, 0, w, -10, 10),
+            map(cursor.current.x, 0, w, -8, 8),
             0.1
           )
-        : lerp(imgValues.imgTransforms.rz, 0, 0.12);
+        : lerp(imgValues.imgTransforms.rz, 0, 0.16);
 
-      // Soft clamp past movementBound (stock behaviour)
-      if (targetX > movementBound)
-        targetX = movementBound + (targetX - movementBound) * 0.2;
-      if (targetX < -movementBound)
-        targetX = -movementBound + (targetX + movementBound) * 0.2;
-      if (targetY > movementBound)
-        targetY = movementBound + (targetY - movementBound) * 0.2;
-      if (targetY < -movementBound)
-        targetY = -movementBound + (targetY + movementBound) * 0.2;
+      // Hard clamp — never leave the frame box
+      targetX = Math.max(-movementBound, Math.min(movementBound, targetX));
+      targetY = Math.max(-movementBound, Math.min(movementBound, targetY));
 
       imgValues.imgTransforms.x = targetX;
       imgValues.imgTransforms.y = targetY;
       imgValues.imgTransforms.rz = targetRz;
 
-      gsap.set(el, {
+      // Transform only the media layer — frame / layout box stay put
+      gsap.set(media, {
         x: imgValues.imgTransforms.x,
         y: imgValues.imgTransforms.y,
         rotateZ: imgValues.imgTransforms.rz,
@@ -186,9 +207,12 @@ const DecayCard: React.FC<DecayCardProps> = ({
       cancelAnimationFrame(rafId);
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("mousemove", handleMouseMove);
-      el.removeEventListener("pointerenter", onEnter);
-      el.removeEventListener("pointerleave", onLeave);
-      gsap.set(el, { clearProps: "transform" });
+      frame.removeEventListener("pointerenter", onEnter);
+      frame.removeEventListener("pointerleave", onLeave);
+      frame.removeEventListener("pointermove", handlePointerMove);
+      frame.removeEventListener("pointerup", onUp);
+      frame.removeEventListener("pointercancel", release);
+      gsap.set(media, { clearProps: "transform" });
     };
   }, [maxDisplacement, movementBound, hoverOnly]);
 
@@ -201,55 +225,63 @@ const DecayCard: React.FC<DecayCardProps> = ({
 
   return (
     <div
-      className={`relative ${className}`}
+      ref={frameRef}
+      className={`relative isolate overflow-hidden rounded-xl border-2 border-balatro-gold/55 bg-black/40 shadow-[0_12px_32px_rgba(0,0,0,0.55),inset_0_0_0_1px_rgba(245,197,66,0.12)] ${className}`}
       style={style}
-      ref={svgRef}
     >
-      <svg
-        viewBox="-60 -75 720 900"
-        preserveAspectRatio="xMidYMid slice"
-        className="relative block h-full w-full"
+      {/* Moving media — clipped by frame overflow */}
+      <div
+        ref={mediaRef}
+        className="absolute inset-0"
         style={{ willChange: "transform" }}
       >
-        <filter id={filterId}>
-          <feTurbulence
-            type="turbulence"
-            baseFrequency={baseFrequency}
-            numOctaves={numOctaves}
-            seed={seed}
-            stitchTiles="stitch"
-            x="0%"
-            y="0%"
-            width="100%"
-            height="100%"
-            result="turbulence1"
-          />
-          <feDisplacementMap
-            ref={displacementMapRef}
-            in="SourceGraphic"
-            in2="turbulence1"
-            scale="0"
-            xChannelSelector="R"
-            yChannelSelector="B"
-            x="0%"
-            y="0%"
-            width="100%"
-            height="100%"
-            result="displacementMap3"
-          />
-        </filter>
-        <g>
-          <image
-            href={image}
-            x="0"
-            y="0"
-            width="600"
-            height="750"
-            filter={`url(#${filterId})`}
-            preserveAspectRatio="xMidYMid slice"
-          />
-        </g>
-      </svg>
+        <svg
+          viewBox="-60 -75 720 900"
+          preserveAspectRatio="xMidYMid slice"
+          className="block h-full w-full"
+        >
+          <filter id={filterId}>
+            <feTurbulence
+              type="turbulence"
+              baseFrequency={baseFrequency}
+              numOctaves={numOctaves}
+              seed={seed}
+              stitchTiles="stitch"
+              x="0%"
+              y="0%"
+              width="100%"
+              height="100%"
+              result="turbulence1"
+            />
+            <feDisplacementMap
+              ref={displacementMapRef}
+              in="SourceGraphic"
+              in2="turbulence1"
+              scale="0"
+              xChannelSelector="R"
+              yChannelSelector="B"
+              x="0%"
+              y="0%"
+              width="100%"
+              height="100%"
+              result="displacementMap3"
+            />
+          </filter>
+          <g>
+            <image
+              href={image}
+              x="0"
+              y="0"
+              width="600"
+              height="750"
+              filter={`url(#${filterId})`}
+              preserveAspectRatio="xMidYMid slice"
+            />
+          </g>
+        </svg>
+      </div>
+
+      {/* Text overlay stays fixed relative to the frame (readable) */}
       <div
         className={
           textClassName ||

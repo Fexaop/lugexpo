@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import {
@@ -63,7 +64,21 @@ function challengeLinks(c: CtfChallenge): ChallengeLink[] {
   return links;
 }
 
+/** Fisher–Yates shuffle (new array). */
+function shuffleArray<T>(items: T[]): T[] {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 const MIN_LOAD_MS = 1600;
+const SHUFFLE_OUT_MS = 420;
+const SHUFFLE_IN_MS = 560;
+
+type DealPhase = "idle" | "out" | "in";
 
 export function CtfList() {
   const [challenges, setChallenges] = useState<CtfChallenge[]>([]);
@@ -71,14 +86,18 @@ export function CtfList() {
   const [error, setError] = useState<string | null>(null);
   /** True only for the first deal (full-screen pick-hand). */
   const [initialDeal, setInitialDeal] = useState(true);
+  /** Card deal / reshuffle animation phase. */
+  const [dealPhase, setDealPhase] = useState<DealPhase>("idle");
+  const [dealKey, setDealKey] = useState(0);
+  const [shuffling, setShuffling] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (opts?: { shuffle?: boolean }) => {
     setLoading(true);
     setError(null);
     const started = Date.now();
     try {
       const data = await listCtfs();
-      setChallenges(data);
+      setChallenges(opts?.shuffle ? shuffleArray(data) : data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load challenges");
     } finally {
@@ -94,6 +113,34 @@ export function CtfList() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const reshuffle = useCallback(async () => {
+    if (shuffling || loading) return;
+    setShuffling(true);
+    setError(null);
+
+    // 1) Fly cards out
+    setDealPhase("out");
+    await new Promise((r) => window.setTimeout(r, SHUFFLE_OUT_MS));
+
+    // 2) Fetch + shuffle order while off-screen
+    try {
+      const data = await listCtfs();
+      setChallenges(shuffleArray(data));
+    } catch (err) {
+      // Offline / API fail — still shuffle local deck so the action feels real
+      setChallenges((prev) => shuffleArray(prev));
+      setError(err instanceof Error ? err.message : "Failed to load challenges");
+    }
+
+    setDealKey((k) => k + 1);
+
+    // 3) Deal cards back in
+    setDealPhase("in");
+    await new Promise((r) => window.setTimeout(r, SHUFFLE_IN_MS));
+    setDealPhase("idle");
+    setShuffling(false);
+  }, [shuffling, loading]);
 
   const totalPoints = useMemo(
     () => challenges.reduce((sum, c) => sum + (c.points || 0), 0),
@@ -154,14 +201,15 @@ export function CtfList() {
             <Button
               variant="outline"
               size="sm"
-              onClick={load}
-              disabled={loading}
+              onClick={reshuffle}
+              disabled={loading || shuffling || challenges.length === 0}
               className="w-full shrink-0 sm:w-auto"
+              aria-busy={shuffling}
             >
-              {loading ? (
+              {shuffling ? (
                 <Loader2 className="animate-spin" />
               ) : (
-                <RefreshCw />
+                <RefreshCw className={shuffling ? "animate-spin" : undefined} />
               )}
               Reshuffle
             </Button>
@@ -175,7 +223,7 @@ export function CtfList() {
         </div>
       )}
 
-      {loading && !initialDeal ? (
+      {loading && !initialDeal && !shuffling ? (
         <BalatroLoading title="RESHUFFLING" fullscreen={false} />
       ) : challenges.length === 0 ? (
         <div className="felt-panel rounded-2xl border-dashed px-6 py-16 text-center sm:py-20">
@@ -188,27 +236,50 @@ export function CtfList() {
         </div>
       ) : (
         // 1 col phone · all 5 in one row from lg up
-        <div className="grid grid-cols-1 justify-items-center gap-8 pb-12 lg:grid-cols-5 lg:items-start lg:gap-3 xl:gap-4">
+        <div
+          key={dealKey}
+          className="grid grid-cols-1 justify-items-center gap-8 pb-12 lg:grid-cols-5 lg:items-start lg:gap-3 xl:gap-4"
+        >
           {challenges.map((c, i) => {
             const links = challengeLinks(c);
             const face = jokerForChallenge(c.id, i);
+            const animClass =
+              dealPhase === "out"
+                ? "card-shuffle-out"
+                : dealPhase === "in" || dealPhase === "idle"
+                  ? "card-shuffle-in"
+                  : "";
             return (
               <article
                 key={c.id}
-                className="group flex w-full max-w-[300px] flex-col items-center lg:max-w-none"
+                className={`group relative flex w-full max-w-[300px] flex-col items-center lg:max-w-none ${animClass}`}
+                style={
+                  {
+                    "--deal-i": i,
+                    animationDelay:
+                      dealPhase === "out"
+                        ? `${i * 55}ms`
+                        : dealPhase === "in"
+                          ? `${i * 70}ms`
+                          : dealPhase === "idle" && dealKey === 0
+                            ? `${i * 80}ms`
+                            : `${i * 70}ms`,
+                  } as CSSProperties
+                }
               >
+                {/* Card frame — motion clipped inside DecayCard border */}
                 <DecayCard
                   width="100%"
                   height="auto"
                   className="aspect-[280/360] w-full max-w-[300px] lg:max-w-none"
                   image={face}
-                  seed={i + 1}
-                  maxDisplacement={560}
-                  movementBound={58}
+                  seed={i + 1 + dealKey}
+                  maxDisplacement={420}
+                  movementBound={22}
                   hoverOnly
                   baseFrequency={0.018}
                   numOctaves={6}
-                  textClassName="pointer-events-none absolute inset-0 flex flex-col justify-between p-3 sm:p-3.5 lg:p-2.5 xl:p-3"
+                  textClassName="pointer-events-none absolute inset-0 z-[1] flex flex-col justify-between p-3 sm:p-3.5 lg:p-2.5 xl:p-3"
                 >
                   <div className="flex items-start justify-between gap-1.5">
                     <Badge className="border border-balatro-gold/50 bg-black/70 font-mono text-[9px] text-balatro-gold backdrop-blur-sm lg:text-[9px] xl:text-[10px]">
@@ -234,7 +305,8 @@ export function CtfList() {
                   </div>
                 </DecayCard>
 
-                <div className="relative z-20 mt-3 w-full rounded-xl border border-balatro-gold/30 bg-[#0a1213]/95 p-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.55)] backdrop-blur-md transition group-hover:border-balatro-gold/55 lg:p-2 xl:p-2.5">
+                {/* Info + Play hand — always above card paint, never clipped */}
+                <div className="relative z-30 mt-3 w-full rounded-xl border border-balatro-gold/30 bg-[#0a1213] p-2.5 shadow-[0_12px_40px_rgba(0,0,0,0.55)] transition group-hover:border-balatro-gold/55 lg:p-2 xl:p-2.5">
                   <div className="mb-2 flex items-center justify-between gap-1 text-[11px] text-muted-foreground lg:text-[10px] xl:text-[11px]">
                     <span className="min-w-0 truncate">
                       by{" "}
@@ -247,14 +319,12 @@ export function CtfList() {
                     </span>
                   </div>
 
-                  {/* Description under the card — always readable */}
                   {c.description ? (
                     <p className="mb-2.5 text-[11px] leading-relaxed text-balatro-cream/85 lg:text-[10px] xl:text-[11px]">
                       {c.description}
                     </p>
                   ) : null}
 
-                  {/* Backend links — open directly */}
                   <div className="mb-2.5 space-y-1.5 lg:mb-2">
                     {!c.running ? (
                       <p className="rounded-md border border-white/10 bg-black/50 px-2 py-1.5 text-[10px] text-zinc-400">
@@ -282,11 +352,14 @@ export function CtfList() {
                     )}
                   </div>
 
-                  <SubmitFlagDialog
-                    challenge={c}
-                    onSuccess={() => load()}
-                    triggerClassName="w-full text-xs lg:text-[11px] xl:text-xs"
-                  />
+                  {/* Explicit min-height so the CTA never collapses on mobile reflow */}
+                  <div className="relative z-40 min-h-11 w-full">
+                    <SubmitFlagDialog
+                      challenge={c}
+                      onSuccess={() => load()}
+                      triggerClassName="w-full min-h-11 text-xs lg:text-[11px] xl:text-xs"
+                    />
+                  </div>
                 </div>
               </article>
             );

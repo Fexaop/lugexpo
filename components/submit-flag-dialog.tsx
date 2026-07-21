@@ -84,12 +84,16 @@ export function SubmitFlagDialog({
       }}
     >
       <DialogTrigger asChild>
-        <Button variant="chip" className={triggerClassName ?? "w-full"}>
-          <Spade className="size-4" />
-          Play hand
+        <Button
+          type="button"
+          variant="chip"
+          className={triggerClassName ?? "w-full min-h-11"}
+        >
+          <Spade className="size-4 shrink-0" />
+          <span>Play hand</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="border-2 border-balatro-gold/40 bg-[#0e181a]/sm:max-w-md shadow-[0_0_60px_rgba(222,68,59,0.2)]">
+      <DialogContent className="max-h-[min(92dvh,720px)] overflow-y-auto border-2 border-balatro-gold/40 bg-[#0e181a] sm:max-w-md shadow-[0_0_60px_rgba(222,68,59,0.2)]">
         <DialogHeader>
           <p className="font-display text-xs tracking-[0.35em] text-balatro-gold">
             SUBMIT FLAG
@@ -171,12 +175,12 @@ export function SubmitFlagDialog({
             </p>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="sticky bottom-0 bg-[#0e181a] pt-1 pb-[max(0.25rem,env(safe-area-inset-bottom))]">
             <Button
               type="submit"
               variant="destructive"
               disabled={loading}
-              className="w-full sm:w-auto"
+              className="min-h-11 w-full sm:w-auto"
             >
               {loading && <Loader2 className="animate-spin" />}
               Cash out
