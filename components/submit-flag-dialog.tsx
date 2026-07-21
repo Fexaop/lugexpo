@@ -91,10 +91,10 @@ export function SubmitFlagDialog({
       </DialogTrigger>
       <DialogContent className="border-2 border-balatro-gold/40 bg-[#0e181a]/sm:max-w-md shadow-[0_0_60px_rgba(222,68,59,0.2)]">
         <DialogHeader>
-          <p className="font-[family-name:var(--font-display)] text-xs tracking-[0.35em] text-balatro-gold">
+          <p className="font-display text-xs tracking-[0.35em] text-balatro-gold">
             SUBMIT FLAG
           </p>
-          <DialogTitle className="font-[family-name:var(--font-display)] text-3xl tracking-wide text-balatro-cream">
+          <DialogTitle className="font-display text-3xl tracking-wide text-balatro-cream">
             {challenge.name}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground">

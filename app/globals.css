@@ -80,6 +80,17 @@ body {
   font-family: var(--font-body), system-ui, sans-serif;
 }
 
+/* Font utilities (Bebas Neue display + Outfit body) */
+.font-display {
+  font-family: var(--font-display), "Bebas Neue", Impact, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+}
+
+.font-body {
+  font-family: var(--font-body), Outfit, system-ui, sans-serif;
+}
+
 /* Gold chip button hover shimmer */
 @keyframes chip-pulse {
   0%,
@@ -97,6 +108,30 @@ body {
 
 .chip-glow {
   animation: chip-pulse 2.8s ease-in-out infinite;
+}
+
+/* Loading: dealing cards + progress */
+@keyframes deal-card {
+  from {
+    translate: 0 0;
+  }
+  to {
+    translate: 0 -10px;
+  }
+}
+
+@keyframes balatro-bar {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.balatro-load-bar {
+  width: 45%;
+  animation: balatro-bar 1.15s ease-in-out infinite;
 }
 
 /* Felt panel behind content */
