@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 type Props = {
   challenge: CtfChallenge;
@@ -83,17 +84,21 @@ export function SubmitFlagDialog({
         if (!v) setMessage(null);
       }}
     >
-      <DialogTrigger asChild>
-        <Button
-          type="button"
-          variant="chip"
-          className={triggerClassName ?? "w-full min-h-11"}
-        >
-          <Spade className="size-4 shrink-0" />
-          <span>Play hand</span>
-        </Button>
+      {/*
+        Avoid asChild on iOS: Slot/merge can drop dimensions until a reflow
+        (e.g. keyboard open / typing). Native button is always painted.
+      */}
+      <DialogTrigger
+        type="button"
+        className={cn(
+          "play-hand-btn chip-glow inline-flex w-full items-center justify-center gap-2 rounded-lg border-2 border-balatro-gold bg-gradient-to-b from-[#ffe08a] to-[#f5c542] px-5 py-3 text-sm font-semibold tracking-wide text-[#1a1000] shadow-[0_4px_0_#a67c12] active:translate-y-0.5 active:shadow-none",
+          triggerClassName
+        )}
+      >
+        <Spade className="size-4 shrink-0" aria-hidden />
+        Play hand
       </DialogTrigger>
-      <DialogContent className="max-h-[min(92dvh,720px)] overflow-y-auto border-2 border-balatro-gold/40 bg-[#0e181a] sm:max-w-md shadow-[0_0_60px_rgba(222,68,59,0.2)]">
+      <DialogContent className="max-h-[min(90dvh,720px)] w-[calc(100%-1.5rem)] overflow-y-auto overscroll-contain border-2 border-balatro-gold/40 bg-[#0e181a] sm:max-w-md shadow-[0_0_60px_rgba(222,68,59,0.2)]">
         <DialogHeader>
           <p className="font-display text-xs tracking-[0.35em] text-balatro-gold">
             SUBMIT FLAG

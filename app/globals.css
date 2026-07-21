@@ -311,60 +311,77 @@ body {
   backdrop-filter: blur(10px);
 }
 
-/* ========== Card deal / reshuffle ========== */
+/* ========== Card deal / reshuffle ==========
+   IMPORTANT (iOS Safari): never leave a permanent class that uses
+   animation-fill-mode:both with opacity:0 — if the animation fails to
+   complete, the whole card (and Play hand) stays invisible until reflow
+   (e.g. focusing an input / typing). Only apply .card-shuffle-* while
+   dealPhase is out/in, then remove the class.
+   No filter:blur — Safari + blur + opacity is a common stuck-invisible bug.
+*/
 @keyframes card-shuffle-out {
   0% {
     opacity: 1;
-    transform: translateY(0) scale(1) rotate(0deg);
-    filter: blur(0);
-  }
-  55% {
-    opacity: 0.85;
-    transform: translateY(-12px) scale(1.03) rotate(calc(var(--deal-i, 0) * 3deg - 6deg));
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
   }
   100% {
     opacity: 0;
-    transform: translateY(-48px) scale(0.55) rotate(calc(var(--deal-i, 0) * 14deg - 28deg));
-    filter: blur(2px);
+    transform: translate3d(0, -40px, 0) scale(0.6)
+      rotate(calc(var(--deal-i, 0) * 12deg - 24deg));
   }
 }
 
 @keyframes card-shuffle-in {
   0% {
     opacity: 0;
-    transform: translateY(56px) scale(0.5) rotate(calc(var(--deal-i, 0) * -12deg + 24deg));
-    filter: blur(2px);
+    transform: translate3d(0, 40px, 0) scale(0.65)
+      rotate(calc(var(--deal-i, 0) * -10deg + 20deg));
   }
-  60% {
+  70% {
     opacity: 1;
-    transform: translateY(-8px) scale(1.04) rotate(calc(var(--deal-i, 0) * 1.5deg - 3deg));
-    filter: blur(0);
+    transform: translate3d(0, -6px, 0) scale(1.03) rotate(0deg);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1) rotate(0deg);
-    filter: blur(0);
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
   }
 }
 
 .card-shuffle-out {
-  animation: card-shuffle-out 0.42s cubic-bezier(0.55, 0.05, 0.75, 0.2) forwards;
-  will-change: transform, opacity;
+  animation: card-shuffle-out 0.38s cubic-bezier(0.55, 0.05, 0.75, 0.2) forwards;
   pointer-events: none;
 }
 
 .card-shuffle-in {
-  animation: card-shuffle-in 0.56s cubic-bezier(0.22, 1, 0.36, 1) both;
-  will-change: transform, opacity;
+  /* forwards only (not both) — no pre-delay opacity:0 freeze */
+  animation: card-shuffle-in 0.52s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Play hand CTA — explicit, iOS-safe (no reliance on chip-glow alone) */
+.play-hand-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.75rem 1rem;
+  opacity: 1 !important;
+  visibility: visible !important;
+  /* Force compositing layer so SVG filters above can't paint over it on iOS */
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  position: relative;
+  z-index: 5;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .card-shuffle-out,
   .card-shuffle-in {
-    animation: none;
-    opacity: 1;
-    transform: none;
-    filter: none;
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
 

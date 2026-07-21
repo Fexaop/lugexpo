@@ -20,7 +20,7 @@ const buttonVariants = cva(
         ghost: "hover:bg-white/5 hover:text-balatro-gold",
         link: "text-balatro-gold underline-offset-4 hover:underline",
         chip:
-          "chip-glow border-2 border-balatro-gold bg-gradient-to-b from-[#ffe08a] to-[#f5c542] text-[#1a1000] shadow-[0_4px_0_#a67c12] hover:brightness-105 active:translate-y-0.5 active:shadow-none",
+          "chip-glow border-2 border-balatro-gold bg-gradient-to-b from-[#ffe08a] to-[#f5c542] text-[#1a1000] shadow-[0_4px_0_#a67c12] hover:brightness-105 active:translate-y-0.5 active:shadow-none touch-manipulation",
       },
       size: {
         default: "h-10 px-5 py-2",
